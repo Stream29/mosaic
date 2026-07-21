@@ -174,6 +174,16 @@ abstract interface com.jakewharton.mosaic.layout/ParentDataModifier : com.jakewh
     abstract fun modifyParentData(kotlin/Any?): kotlin/Any? // com.jakewharton.mosaic.layout/ParentDataModifier.modifyParentData|modifyParentData(kotlin.Any?){}[0]
 }
 
+abstract interface com.jakewharton.mosaic.layout/PointerHoverModifier : com.jakewharton.mosaic.modifier/Modifier.Element { // com.jakewharton.mosaic.layout/PointerHoverModifier|null[0]
+    abstract fun onPointerEnter(com.jakewharton.mosaic.layout/PointerEvent) // com.jakewharton.mosaic.layout/PointerHoverModifier.onPointerEnter|onPointerEnter(com.jakewharton.mosaic.layout.PointerEvent){}[0]
+    abstract fun onPointerExit(com.jakewharton.mosaic.layout/PointerEvent) // com.jakewharton.mosaic.layout/PointerHoverModifier.onPointerExit|onPointerExit(com.jakewharton.mosaic.layout.PointerEvent){}[0]
+}
+
+abstract interface com.jakewharton.mosaic.layout/PointerModifier : com.jakewharton.mosaic.modifier/Modifier.Element { // com.jakewharton.mosaic.layout/PointerModifier|null[0]
+    abstract fun onPointerEvent(com.jakewharton.mosaic.layout/PointerEvent): kotlin/Boolean // com.jakewharton.mosaic.layout/PointerModifier.onPointerEvent|onPointerEvent(com.jakewharton.mosaic.layout.PointerEvent){}[0]
+    abstract fun onPrePointerEvent(com.jakewharton.mosaic.layout/PointerEvent): kotlin/Boolean // com.jakewharton.mosaic.layout/PointerModifier.onPrePointerEvent|onPrePointerEvent(com.jakewharton.mosaic.layout.PointerEvent){}[0]
+}
+
 abstract interface com.jakewharton.mosaic.modifier/Modifier { // com.jakewharton.mosaic.modifier/Modifier|null[0]
     abstract fun <#A1: kotlin/Any?> foldIn(#A1, kotlin/Function2<#A1, com.jakewharton.mosaic.modifier/Modifier.Element, #A1>): #A1 // com.jakewharton.mosaic.modifier/Modifier.foldIn|foldIn(0:0;kotlin.Function2<0:0,com.jakewharton.mosaic.modifier.Modifier.Element,0:0>){0§<kotlin.Any?>}[0]
     abstract fun <#A1: kotlin/Any?> foldOut(#A1, kotlin/Function2<com.jakewharton.mosaic.modifier/Modifier.Element, #A1, #A1>): #A1 // com.jakewharton.mosaic.modifier/Modifier.foldOut|foldOut(0:0;kotlin.Function2<com.jakewharton.mosaic.modifier.Modifier.Element,0:0,0:0>){0§<kotlin.Any?>}[0]
@@ -301,6 +311,27 @@ final class com.jakewharton.mosaic.layout/LayoutCoordinates { // com.jakewharton
     final fun equals(kotlin/Any?): kotlin/Boolean // com.jakewharton.mosaic.layout/LayoutCoordinates.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // com.jakewharton.mosaic.layout/LayoutCoordinates.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // com.jakewharton.mosaic.layout/LayoutCoordinates.toString|toString(){}[0]
+}
+
+final class com.jakewharton.mosaic.layout/PointerEvent { // com.jakewharton.mosaic.layout/PointerEvent|null[0]
+    constructor <init>(com.jakewharton.mosaic.ui.unit/IntOffset, com.jakewharton.mosaic.terminal/MouseEvent.Type, com.jakewharton.mosaic.terminal/MouseEvent.Button = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.jakewharton.mosaic.layout/PointerEvent.<init>|<init>(com.jakewharton.mosaic.ui.unit.IntOffset;com.jakewharton.mosaic.terminal.MouseEvent.Type;com.jakewharton.mosaic.terminal.MouseEvent.Button;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+
+    final val alt // com.jakewharton.mosaic.layout/PointerEvent.alt|{}alt[0]
+        final fun <get-alt>(): kotlin/Boolean // com.jakewharton.mosaic.layout/PointerEvent.alt.<get-alt>|<get-alt>(){}[0]
+    final val button // com.jakewharton.mosaic.layout/PointerEvent.button|{}button[0]
+        final fun <get-button>(): com.jakewharton.mosaic.terminal/MouseEvent.Button // com.jakewharton.mosaic.layout/PointerEvent.button.<get-button>|<get-button>(){}[0]
+    final val ctrl // com.jakewharton.mosaic.layout/PointerEvent.ctrl|{}ctrl[0]
+        final fun <get-ctrl>(): kotlin/Boolean // com.jakewharton.mosaic.layout/PointerEvent.ctrl.<get-ctrl>|<get-ctrl>(){}[0]
+    final val position // com.jakewharton.mosaic.layout/PointerEvent.position|{}position[0]
+        final fun <get-position>(): com.jakewharton.mosaic.ui.unit/IntOffset // com.jakewharton.mosaic.layout/PointerEvent.position.<get-position>|<get-position>(){}[0]
+    final val shift // com.jakewharton.mosaic.layout/PointerEvent.shift|{}shift[0]
+        final fun <get-shift>(): kotlin/Boolean // com.jakewharton.mosaic.layout/PointerEvent.shift.<get-shift>|<get-shift>(){}[0]
+    final val type // com.jakewharton.mosaic.layout/PointerEvent.type|{}type[0]
+        final fun <get-type>(): com.jakewharton.mosaic.terminal/MouseEvent.Type // com.jakewharton.mosaic.layout/PointerEvent.type.<get-type>|<get-type>(){}[0]
+
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.jakewharton.mosaic.layout/PointerEvent.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.jakewharton.mosaic.layout/PointerEvent.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.jakewharton.mosaic.layout/PointerEvent.toString|toString(){}[0]
 }
 
 final class com.jakewharton.mosaic.modifier/CombinedModifier : com.jakewharton.mosaic.modifier/Modifier { // com.jakewharton.mosaic.modifier/CombinedModifier|null[0]
@@ -749,6 +780,7 @@ final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop|#static{}com_jakewharton_mosaic_layout_KeyEvent$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_LayoutCoordinates$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_LayoutCoordinates$stableprop|#static{}com_jakewharton_mosaic_layout_LayoutCoordinates$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_Placeable$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_Placeable$stableprop|#static{}com_jakewharton_mosaic_layout_Placeable$stableprop[0]
+final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_PointerEvent$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_PointerEvent$stableprop|#static{}com_jakewharton_mosaic_layout_PointerEvent$stableprop[0]
 final val com.jakewharton.mosaic.layout/layoutId // com.jakewharton.mosaic.layout/layoutId|@com.jakewharton.mosaic.layout.Measurable{}layoutId[0]
     final fun (com.jakewharton.mosaic.layout/Measurable).<get-layoutId>(): kotlin/Any? // com.jakewharton.mosaic.layout/layoutId.<get-layoutId>|<get-layoutId>@com.jakewharton.mosaic.layout.Measurable(){}[0]
 final val com.jakewharton.mosaic.modifier/com_jakewharton_mosaic_modifier_CombinedModifier$stableprop // com.jakewharton.mosaic.modifier/com_jakewharton_mosaic_modifier_CombinedModifier$stableprop|#static{}com_jakewharton_mosaic_modifier_CombinedModifier$stableprop[0]
@@ -808,7 +840,10 @@ final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layo
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/offset(kotlin/Int = ..., kotlin/Int = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/offset|offset@com.jakewharton.mosaic.modifier.Modifier(kotlin.Int;kotlin.Int){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/onKeyEvent(kotlin/Function1<com.jakewharton.mosaic.layout/KeyEvent, kotlin/Boolean>): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/onKeyEvent|onKeyEvent@com.jakewharton.mosaic.modifier.Modifier(kotlin.Function1<com.jakewharton.mosaic.layout.KeyEvent,kotlin.Boolean>){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/onPlaced(kotlin/Function1<com.jakewharton.mosaic.layout/LayoutCoordinates, kotlin/Unit>): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/onPlaced|onPlaced@com.jakewharton.mosaic.modifier.Modifier(kotlin.Function1<com.jakewharton.mosaic.layout.LayoutCoordinates,kotlin.Unit>){}[0]
+final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/onPointerEvent(kotlin/Function1<com.jakewharton.mosaic.layout/PointerEvent, kotlin/Boolean>): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/onPointerEvent|onPointerEvent@com.jakewharton.mosaic.modifier.Modifier(kotlin.Function1<com.jakewharton.mosaic.layout.PointerEvent,kotlin.Boolean>){}[0]
+final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/onPointerHover(kotlin/Function1<com.jakewharton.mosaic.layout/PointerEvent, kotlin/Unit>, kotlin/Function1<com.jakewharton.mosaic.layout/PointerEvent, kotlin/Unit>): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/onPointerHover|onPointerHover@com.jakewharton.mosaic.modifier.Modifier(kotlin.Function1<com.jakewharton.mosaic.layout.PointerEvent,kotlin.Unit>;kotlin.Function1<com.jakewharton.mosaic.layout.PointerEvent,kotlin.Unit>){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/onPreviewKeyEvent(kotlin/Function1<com.jakewharton.mosaic.layout/KeyEvent, kotlin/Boolean>): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/onPreviewKeyEvent|onPreviewKeyEvent@com.jakewharton.mosaic.modifier.Modifier(kotlin.Function1<com.jakewharton.mosaic.layout.KeyEvent,kotlin.Boolean>){}[0]
+final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/onPreviewPointerEvent(kotlin/Function1<com.jakewharton.mosaic.layout/PointerEvent, kotlin/Boolean>): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/onPreviewPointerEvent|onPreviewPointerEvent@com.jakewharton.mosaic.modifier.Modifier(kotlin.Function1<com.jakewharton.mosaic.layout.PointerEvent,kotlin.Boolean>){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/padding(kotlin/Int = ..., kotlin/Int = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/padding|padding@com.jakewharton.mosaic.modifier.Modifier(kotlin.Int;kotlin.Int){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/padding(kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/padding|padding@com.jakewharton.mosaic.modifier.Modifier(kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/padding(kotlin/Int): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/padding|padding@com.jakewharton.mosaic.modifier.Modifier(kotlin.Int){}[0]
@@ -849,6 +884,7 @@ final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop_getter|com_jakewharton_mosaic_layout_KeyEvent$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_LayoutCoordinates$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_LayoutCoordinates$stableprop_getter|com_jakewharton_mosaic_layout_LayoutCoordinates$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_Placeable$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_Placeable$stableprop_getter|com_jakewharton_mosaic_layout_Placeable$stableprop_getter(){}[0]
+final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_PointerEvent$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_PointerEvent$stableprop_getter|com_jakewharton_mosaic_layout_PointerEvent$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.modifier/com_jakewharton_mosaic_modifier_CombinedModifier$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.modifier/com_jakewharton_mosaic_modifier_CombinedModifier$stableprop_getter|com_jakewharton_mosaic_modifier_CombinedModifier$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.text/AnnotatedString(kotlin/String, com.jakewharton.mosaic.text/SpanStyle): com.jakewharton.mosaic.text/AnnotatedString // com.jakewharton.mosaic.text/AnnotatedString|AnnotatedString(kotlin.String;com.jakewharton.mosaic.text.SpanStyle){}[0]
 final fun com.jakewharton.mosaic.text/com_jakewharton_mosaic_text_AnnotatedString$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.text/com_jakewharton_mosaic_text_AnnotatedString$stableprop_getter|com_jakewharton_mosaic_text_AnnotatedString$stableprop_getter(){}[0]

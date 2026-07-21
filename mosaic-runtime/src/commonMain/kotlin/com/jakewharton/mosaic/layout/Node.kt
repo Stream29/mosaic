@@ -78,6 +78,10 @@ internal abstract class MosaicNodeLayer :
 		next?.collectFocus(collector)
 	}
 
+	open fun collectPointer(collector: PointerTreeCollector) {
+		next?.collectPointer(collector)
+	}
+
 	override fun minIntrinsicWidth(height: Int): Int {
 		return next?.minIntrinsicWidth(height) ?: 0
 	}
@@ -113,6 +117,8 @@ internal class MosaicNode(
 	private val focusScopes = mutableListOf<FocusScopeHandle>()
 	private val focusRequesterNodes = mutableListOf<FocusRequesterNode>()
 	private val focusEventNodes = mutableListOf<FocusEventNode>()
+	private val pointerInputNodes = mutableListOf<PointerInputNode>()
+	private val pointerHoverNodes = mutableListOf<PointerHoverNode>()
 	private val onPlacedHandles = mutableListOf<OnPlacedHandle>()
 	var topLayer: MosaicNodeLayer = bottomLayer
 		private set
@@ -128,6 +134,8 @@ internal class MosaicNode(
 		var focusScopeIndex = 0
 		var focusRequesterIndex = 0
 		var focusEventIndex = 0
+		var pointerInputIndex = 0
+		var pointerHoverIndex = 0
 		var onPlacedIndex = 0
 		topLayer = modifier.foldOut(bottomLayer) { element, nextLayer ->
 			var nextLayer = nextLayer
@@ -175,6 +183,20 @@ internal class MosaicNode(
 			if (element is FocusCursorModifier) {
 				nextLayer = FocusCursorLayer(element, nextLayer)
 			}
+			if (element is PointerModifier) {
+				val node = pointerInputNodes.getOrNull(pointerInputIndex)
+					?: PointerInputNode(element).also(pointerInputNodes::add)
+				pointerInputIndex++
+				node.modifier = element
+				nextLayer = PointerInputLayer(node, nextLayer)
+			}
+			if (element is PointerHoverModifier) {
+				val node = pointerHoverNodes.getOrNull(pointerHoverIndex)
+					?: PointerHoverNode(element).also(pointerHoverNodes::add)
+				pointerHoverIndex++
+				node.modifier = element
+				nextLayer = PointerHoverLayer(node, nextLayer)
+			}
 			if (element is OnPlacedModifier) {
 				val handle = onPlacedHandles.getOrNull(onPlacedIndex)
 					?: OnPlacedHandle(element).also(onPlacedHandles::add)
@@ -194,6 +216,8 @@ internal class MosaicNode(
 		focusScopes.subList(focusScopeIndex, focusScopes.size).clear()
 		focusRequesterNodes.subList(focusRequesterIndex, focusRequesterNodes.size).clear()
 		focusEventNodes.subList(focusEventIndex, focusEventNodes.size).clear()
+		pointerInputNodes.subList(pointerInputIndex, pointerInputNodes.size).clear()
+		pointerHoverNodes.subList(pointerHoverIndex, pointerHoverNodes.size).clear()
 		onPlacedHandles.subList(onPlacedIndex, onPlacedHandles.size).clear()
 	}
 
@@ -226,6 +250,12 @@ internal class MosaicNode(
 	fun collectFocusTree(): FocusTree {
 		val collector = FocusTreeCollector()
 		topLayer.collectFocus(collector)
+		return collector.build()
+	}
+
+	fun collectPointerTree(): PointerTree {
+		val collector = PointerTreeCollector()
+		topLayer.collectPointer(collector)
 		return collector.build()
 	}
 
@@ -277,6 +307,12 @@ private class BottomLayer(
 	override fun collectFocus(collector: FocusTreeCollector) {
 		for (child in node.children) {
 			child.topLayer.collectFocus(collector)
+		}
+	}
+
+	override fun collectPointer(collector: PointerTreeCollector) {
+		for (child in node.children) {
+			child.topLayer.collectPointer(collector)
 		}
 	}
 
@@ -421,6 +457,33 @@ private fun MosaicNodeLayer.focusBounds(): FocusBounds = FocusBounds(
 	position = IntOffset(x, y),
 	size = IntSize(width, height),
 )
+
+private fun MosaicNodeLayer.layoutCoordinates(): LayoutCoordinates = LayoutCoordinates(
+	position = IntOffset(x, y),
+	size = IntSize(width, height),
+)
+
+private class PointerInputLayer(
+	private val node: PointerInputNode,
+	override val next: MosaicNodeLayer,
+) : MosaicNodeLayer() {
+	override fun collectPointer(collector: PointerTreeCollector) {
+		collector.visitPointerInput(node, layoutCoordinates()) {
+			next.collectPointer(collector)
+		}
+	}
+}
+
+private class PointerHoverLayer(
+	private val node: PointerHoverNode,
+	override val next: MosaicNodeLayer,
+) : MosaicNodeLayer() {
+	override fun collectPointer(collector: PointerTreeCollector) {
+		collector.visitPointerHover(node, layoutCoordinates()) {
+			next.collectPointer(collector)
+		}
+	}
+}
 
 private class OnPlacedHandle(
 	var element: OnPlacedModifier,

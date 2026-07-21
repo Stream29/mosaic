@@ -19,6 +19,8 @@ import com.jakewharton.mosaic.NonInteractivePolicy.Exit
 import com.jakewharton.mosaic.focus.FocusOwner
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.MosaicNode
+import com.jakewharton.mosaic.layout.PointerEvent
+import com.jakewharton.mosaic.layout.PointerOwner
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.terminal.MouseTracking
@@ -176,6 +178,7 @@ internal class MosaicComposition(
 		}
 	}
 	private val focusOwner = FocusOwner(terminalCursorController::updateFocus)
+	private val pointerOwner = PointerOwner()
 
 	override val lifecycle = LifecycleRegistry.createUnsafe(this)
 
@@ -235,6 +238,7 @@ internal class MosaicComposition(
 		Snapshot.observe(readObserver = readStatesOnLayoutObserver) {
 			rootNode.measureAndPlace()
 			focusOwner.reconcile(rootNode.collectFocusTree())
+			pointerOwner.reconcile(rootNode.collectPointerTree())
 		}
 
 		performDraw()
@@ -345,12 +349,21 @@ internal class MosaicComposition(
 							}
 
 							is MouseEvent -> {
+								val pointerEvent = PointerEvent(
+									position = IntOffset(event.x, event.y),
+									type = event.type,
+									button = event.button,
+									shift = event.shift,
+									alt = event.alt,
+									ctrl = event.ctrl,
+								)
 								if (
 									event.type == MouseEvent.Type.Press &&
 									event.button == MouseEvent.Button.Left
 								) {
-									focusOwner.requestFocusAt(IntOffset(event.x, event.y))
+									focusOwner.requestFocusAt(pointerEvent.position)
 								}
+								pointerOwner.dispatch(pointerEvent)
 							}
 
 							else -> Unit
@@ -400,6 +413,7 @@ internal class MosaicComposition(
 			recomposer.join()
 		} finally {
 			applyObserverHandle.dispose() // if canceled before dispose in the try block
+			pointerOwner.clear()
 			focusOwner.clear()
 			job.cancel()
 		}
@@ -407,6 +421,7 @@ internal class MosaicComposition(
 
 	override fun cancel() {
 		applyObserverHandle.dispose()
+		pointerOwner.clear()
 		focusOwner.clear()
 		recomposer.cancel()
 		job.cancel()

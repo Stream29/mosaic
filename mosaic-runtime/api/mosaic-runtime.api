@@ -324,6 +324,37 @@ public abstract interface class com/jakewharton/mosaic/layout/Placeable$Placemen
 	public fun place-2QaL3TI (Lcom/jakewharton/mosaic/layout/Placeable;J)V
 }
 
+public final class com/jakewharton/mosaic/layout/PointerEvent {
+	public static final field $stable I
+	public synthetic fun <init> (JLcom/jakewharton/mosaic/terminal/MouseEvent$Type;Lcom/jakewharton/mosaic/terminal/MouseEvent$Button;ZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (JLcom/jakewharton/mosaic/terminal/MouseEvent$Type;Lcom/jakewharton/mosaic/terminal/MouseEvent$Button;ZZZLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAlt ()Z
+	public final fun getButton ()Lcom/jakewharton/mosaic/terminal/MouseEvent$Button;
+	public final fun getCtrl ()Z
+	public final fun getPosition--lBJcEo ()J
+	public final fun getShift ()Z
+	public final fun getType ()Lcom/jakewharton/mosaic/terminal/MouseEvent$Type;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/jakewharton/mosaic/layout/PointerHoverModifier : com/jakewharton/mosaic/modifier/Modifier$Element {
+	public abstract fun onPointerEnter (Lcom/jakewharton/mosaic/layout/PointerEvent;)V
+	public abstract fun onPointerExit (Lcom/jakewharton/mosaic/layout/PointerEvent;)V
+}
+
+public abstract interface class com/jakewharton/mosaic/layout/PointerModifier : com/jakewharton/mosaic/modifier/Modifier$Element {
+	public abstract fun onPointerEvent (Lcom/jakewharton/mosaic/layout/PointerEvent;)Z
+	public abstract fun onPrePointerEvent (Lcom/jakewharton/mosaic/layout/PointerEvent;)Z
+}
+
+public final class com/jakewharton/mosaic/layout/PointerModifierKt {
+	public static final fun onPointerEvent (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun onPointerHover (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun onPreviewPointerEvent (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
+}
+
 public final class com/jakewharton/mosaic/layout/SizeKt {
 	public static final fun defaultMinSize (Lcom/jakewharton/mosaic/modifier/Modifier;II)Lcom/jakewharton/mosaic/modifier/Modifier;
 	public static synthetic fun defaultMinSize$default (Lcom/jakewharton/mosaic/modifier/Modifier;IIILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;

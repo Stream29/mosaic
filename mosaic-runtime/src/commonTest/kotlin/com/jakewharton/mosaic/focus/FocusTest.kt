@@ -15,6 +15,7 @@ import com.jakewharton.mosaic.cursorPosition
 import com.jakewharton.mosaic.layout.fillMaxWidth
 import com.jakewharton.mosaic.layout.offset
 import com.jakewharton.mosaic.layout.onKeyEvent
+import com.jakewharton.mosaic.layout.onPointerEvent
 import com.jakewharton.mosaic.layout.onPreviewKeyEvent
 import com.jakewharton.mosaic.layout.width
 import com.jakewharton.mosaic.modifier.Modifier
@@ -186,6 +187,37 @@ class FocusTest {
 			awaitSnapshot()
 			assertThat(focused).isEqualTo("second")
 		}
+	}
+
+	@Test fun pointerFocusIsCommittedBeforeThePointerCallback() = runTest {
+		var secondFocused = false
+		var callbackObservedFocus by mutableStateOf(false)
+
+		runMosaicTest {
+			setContentAndSnapshot {
+				Column {
+					Row {
+						FocusText("first")
+						Text(
+							value = "second",
+							modifier = Modifier
+								.onFocusChanged { state -> secondFocused = state.isFocused }
+								.onPointerEvent {
+									callbackObservedFocus = secondFocused
+									true
+								}
+								.focusable(),
+						)
+					}
+					Text(callbackObservedFocus.toString())
+				}
+			}
+
+			sendMouseEvent(MouseEvent(6, 0, MouseEvent.Type.Press, MouseEvent.Button.Left))
+			awaitSnapshot()
+		}
+
+		assertThat(callbackObservedFocus).isTrue()
 	}
 
 	@Test fun pointerFocusUsesLaidOutBounds() = runTest {
