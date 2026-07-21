@@ -7,6 +7,7 @@ import com.jakewharton.mosaic.NonInteractivePolicy.Return
 import com.jakewharton.mosaic.NonInteractivePolicy.Throw
 import com.jakewharton.mosaic.terminal.AnsiLevel
 import com.jakewharton.mosaic.terminal.Event
+import com.jakewharton.mosaic.terminal.MouseTracking
 import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.tty.Tty
 import com.jakewharton.mosaic.tty.terminal.asTerminalIn
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 internal suspend fun withTerminal(
 	onNonInteractive: NonInteractivePolicy,
+	mouseTracking: MouseTracking,
 	block: suspend (Terminal) -> Unit,
 ): Boolean = coroutineScope {
 	val tty = if (onNonInteractive != AssumeAndIgnore) {
@@ -34,7 +36,7 @@ internal suspend fun withTerminal(
 	}
 
 	tty.use {
-		val terminal = tty?.asTerminalIn(this) ?: NonInteractiveTerminal
+		val terminal = tty?.asTerminalIn(this, mouseTracking) ?: NonInteractiveTerminal
 		terminal.use { block(it) }
 	}
 

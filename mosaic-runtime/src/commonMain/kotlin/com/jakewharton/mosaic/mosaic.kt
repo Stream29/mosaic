@@ -19,6 +19,7 @@ import com.jakewharton.mosaic.NonInteractivePolicy.Exit
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.MosaicNode
 import com.jakewharton.mosaic.terminal.KeyboardEvent
+import com.jakewharton.mosaic.terminal.MouseTracking
 import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.ui.BoxMeasurePolicy
 import kotlin.concurrent.Volatile
@@ -40,22 +41,43 @@ import kotlinx.coroutines.runBlocking
 public fun runMosaicMain(
 	content: @Composable () -> Unit,
 ) {
-	runMosaicBlocking(content = content)
+	runMosaicMain(MouseTracking.Disabled, content)
+}
+
+public fun runMosaicMain(
+	mouseTracking: MouseTracking,
+	content: @Composable () -> Unit,
+) {
+	runMosaicBlocking(mouseTracking = mouseTracking, content = content)
 }
 
 public fun runMosaicBlocking(
 	onNonInteractive: NonInteractivePolicy = Exit,
 	content: @Composable () -> Unit,
 ): Boolean {
+	return runMosaicBlocking(onNonInteractive, MouseTracking.Disabled, content)
+}
+
+public fun runMosaicBlocking(
+	onNonInteractive: NonInteractivePolicy = Exit,
+	mouseTracking: MouseTracking,
+	content: @Composable () -> Unit,
+): Boolean {
 	return runBlocking {
-		runMosaic(onNonInteractive, content)
+		runMosaic(onNonInteractive, mouseTracking, content)
 	}
 }
 
 public suspend fun runMosaic(
 	onNonInteractive: NonInteractivePolicy = Exit,
 	content: @Composable () -> Unit,
-): Boolean = withTerminal(onNonInteractive) { terminal ->
+): Boolean = runMosaic(onNonInteractive, MouseTracking.Disabled, content)
+
+public suspend fun runMosaic(
+	onNonInteractive: NonInteractivePolicy = Exit,
+	mouseTracking: MouseTracking,
+	content: @Composable () -> Unit,
+): Boolean = withTerminal(onNonInteractive, mouseTracking) { terminal ->
 	val rendering = if (env("MOSAIC_DEBUG_RENDERING") == "true") {
 		DebugRendering(terminal.capabilities)
 	} else {

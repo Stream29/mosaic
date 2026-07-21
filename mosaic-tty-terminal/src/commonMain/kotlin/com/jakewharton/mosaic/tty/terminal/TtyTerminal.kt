@@ -13,6 +13,7 @@ import com.jakewharton.mosaic.terminal.KittyGraphicsEvent
 import com.jakewharton.mosaic.terminal.KittyKeyboardQueryEvent
 import com.jakewharton.mosaic.terminal.KittyNotificationEvent
 import com.jakewharton.mosaic.terminal.KittyPointerQueryEvent
+import com.jakewharton.mosaic.terminal.MouseTracking
 import com.jakewharton.mosaic.terminal.OperatingStatusResponseEvent
 import com.jakewharton.mosaic.terminal.PrimaryDeviceAttributesEvent
 import com.jakewharton.mosaic.terminal.ResizeEvent
@@ -75,14 +76,30 @@ private const val StageCapabilityQueries = 2
 private const val StageDefaultQueries = 1
 private const val StageNormalOperation = 0
 
+/** `null` means that mouse tracking is disabled and terminal mouse modes remain unchanged. */
+private val MouseTracking.decMode: Int?
+	get() = when (this) {
+		MouseTracking.Disabled -> null
+		MouseTracking.ButtonEvents -> mouseButtonEventMode
+		MouseTracking.AnyEvents -> mouseAnyEventMode
+	}
+
 public suspend fun Tty.asTerminalIn(
 	scope: CoroutineScope,
+	/** When true, each terminal event will be immediately followed by a matching [DebugEvent]. */
+	emitDebugEvents: Boolean = false,
+): Terminal = asTerminalIn(scope, MouseTracking.Disabled, emitDebugEvents)
+
+public suspend fun Tty.asTerminalIn(
+	scope: CoroutineScope,
+	mouseTracking: MouseTracking,
 	/** When true, each terminal event will be immediately followed by a matching [DebugEvent]. */
 	emitDebugEvents: Boolean = false,
 ): Terminal {
 	// Entering raw mode can fail, so perform it before any additional control sequences which change
 	// settings. We also need to be in character mode to query capabilities with control sequences.
 	enableRawMode()
+	val mouseEventMode = mouseTracking.decMode
 
 	val focused = MutableStateFlow(true)
 	val theme = MutableStateFlow(Terminal.Theme.Unknown)
@@ -98,6 +115,10 @@ public suspend fun Tty.asTerminalIn(
 	var toggleFocus = false
 	var kittyKeyboardPushed = false
 	var modifyOtherKeysEnabled = false
+	var toggleMouseEvents = false
+	var toggleMouseSgrCoordinates = false
+	var mouseEventsKnown = false
+	var mouseSgrCoordinatesKnown = false
 	var toggleInBandResize = false
 	var toggleSystemTheme = false
 
@@ -110,6 +131,8 @@ public suspend fun Tty.asTerminalIn(
 				if (modifyOtherKeysEnabled) write(modifyOtherKeysReset)
 				if (toggleSystemTheme) write(systemThemeDisable)
 				if (toggleInBandResize) write(inBandResizeDisable)
+				if (toggleMouseSgrCoordinates) write(mouseSgrCoordinatesDisable)
+				if (toggleMouseEvents) mouseEventMode?.let { write("$CSI?${it}l") }
 				if (toggleFocus) write(focusDisable)
 				if (toggleCursor) write(cursorEnable)
 				reset()
@@ -168,6 +191,12 @@ public suspend fun Tty.asTerminalIn(
 					write(
 						"$CSI?$cursorMode\$p" +
 							"$CSI?$focusMode\$p" +
+							if (mouseEventMode != null) {
+								"$CSI?$mouseEventMode\$p" +
+									"$CSI?$mouseSgrCoordinatesMode\$p"
+							} else {
+								""
+							} +
 							"$CSI?$synchronizedOutputMode\$p" +
 							"$CSI?$systemThemeMode\$p" +
 							"$CSI?$inBandResizeMode\$p" +
@@ -205,6 +234,16 @@ public suspend fun Tty.asTerminalIn(
 							}
 						}
 
+						mouseSgrCoordinatesMode -> {
+							if (mouseEventMode != null) {
+								mouseSgrCoordinatesKnown = true
+								if (event.setting.isSupported) {
+									toggleMouseSgrCoordinates = event.setting == Setting.Reset
+									if (toggleMouseSgrCoordinates) write(mouseSgrCoordinatesEnable)
+								}
+							}
+						}
+
 						synchronizedOutputMode -> {
 							synchronizedOutput = event.setting.canBeChanged
 						}
@@ -223,6 +262,16 @@ public suspend fun Tty.asTerminalIn(
 								toggleInBandResize = event.setting == Setting.Reset
 								// Enabling in-band resize (even if already set) should trigger an initial event.
 								write(inBandResizeEnable)
+							}
+						}
+
+						else -> {
+							if (mouseEventMode != null && event.mode == mouseEventMode) {
+								mouseEventsKnown = true
+								if (event.setting.isSupported) {
+									toggleMouseEvents = event.setting == Setting.Reset
+									if (toggleMouseEvents) write("$CSI?${mouseEventMode}h")
+								}
 							}
 						}
 					}
@@ -343,6 +392,18 @@ public suspend fun Tty.asTerminalIn(
 	if (!kittyKeyboardPushed) {
 		modifyOtherKeysEnabled = true
 		write(modifyOtherKeysEnable)
+	}
+	if (mouseEventMode != null) {
+		// DEC mode reporting is optional. If the terminal stays silent, request the standard modes
+		// and restore them when the session closes.
+		if (!mouseEventsKnown) {
+			toggleMouseEvents = true
+			write("$CSI?${mouseEventMode}h")
+		}
+		if (!mouseSgrCoordinatesKnown) {
+			toggleMouseSgrCoordinates = true
+			write(mouseSgrCoordinatesEnable)
+		}
 	}
 
 	if (debugBootstrap) {

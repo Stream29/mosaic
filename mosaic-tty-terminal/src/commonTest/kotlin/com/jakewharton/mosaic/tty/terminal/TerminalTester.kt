@@ -2,6 +2,7 @@ package com.jakewharton.mosaic.tty.terminal
 
 import assertk.assertThat
 import assertk.assertions.isEmpty
+import com.jakewharton.mosaic.terminal.MouseTracking
 import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.tty.TestTerminal
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +42,10 @@ class TerminalTester(
 
 	fun ptyWrite(s: String) = testTerminal.write(s)
 
-	suspend fun withTerminal(block: suspend Terminal.(setup: ByteString) -> Unit): ByteString {
+	suspend fun withTerminal(
+		mouseTracking: MouseTracking = MouseTracking.Disabled,
+		block: suspend Terminal.(setup: ByteString) -> Unit,
+	): ByteString {
 		expects.close()
 		val expects = ArrayDeque(expects.toList())
 
@@ -76,7 +80,7 @@ class TerminalTester(
 		coroutineScope {
 			var readJob = launch(Dispatchers.IO) { readUntilInterrupted() }
 			try {
-				testTerminal.tty.asTerminalIn(this).use { terminal ->
+				testTerminal.tty.asTerminalIn(this, mouseTracking).use { terminal ->
 					testTerminal.interruptTtyRead()
 					readJob.cancelAndJoin()
 

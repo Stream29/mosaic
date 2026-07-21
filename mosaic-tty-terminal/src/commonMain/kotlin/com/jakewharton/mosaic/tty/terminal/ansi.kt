@@ -17,6 +17,14 @@ internal const val focusMode = 1004
 internal const val focusEnable = "$CSI?${focusMode}h"
 internal const val focusDisable = "$CSI?${focusMode}l"
 
+internal const val mouseButtonEventMode = 1002
+
+internal const val mouseAnyEventMode = 1003
+
+internal const val mouseSgrCoordinatesMode = 1006
+internal const val mouseSgrCoordinatesEnable = "$CSI?${mouseSgrCoordinatesMode}h"
+internal const val mouseSgrCoordinatesDisable = "$CSI?${mouseSgrCoordinatesMode}l"
+
 // Disambiguate escape codes, report all keys, and report associated text.
 internal const val kittyKeyboardPush = "$CSI>25u"
 internal const val kittyKeyboardPop = "$CSI<u"

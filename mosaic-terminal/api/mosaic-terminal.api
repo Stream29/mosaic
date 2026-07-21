@@ -224,6 +224,15 @@ public final class com/jakewharton/mosaic/terminal/MouseEvent$Type : java/lang/E
 	public static fun values ()[Lcom/jakewharton/mosaic/terminal/MouseEvent$Type;
 }
 
+public final class com/jakewharton/mosaic/terminal/MouseTracking : java/lang/Enum {
+	public static final field AnyEvents Lcom/jakewharton/mosaic/terminal/MouseTracking;
+	public static final field ButtonEvents Lcom/jakewharton/mosaic/terminal/MouseTracking;
+	public static final field Disabled Lcom/jakewharton/mosaic/terminal/MouseTracking;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/jakewharton/mosaic/terminal/MouseTracking;
+	public static fun values ()[Lcom/jakewharton/mosaic/terminal/MouseTracking;
+}
+
 public final class com/jakewharton/mosaic/terminal/OperatingStatusResponseEvent : com/jakewharton/mosaic/terminal/Event {
 	public fun <init> (Z)V
 	public fun equals (Ljava/lang/Object;)Z
