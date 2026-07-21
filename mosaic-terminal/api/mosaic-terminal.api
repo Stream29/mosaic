@@ -362,6 +362,14 @@ public final class com/jakewharton/mosaic/terminal/TerminalColorEvent$Color : ja
 	public static fun values ()[Lcom/jakewharton/mosaic/terminal/TerminalColorEvent$Color;
 }
 
+public final class com/jakewharton/mosaic/terminal/TerminalScreen : java/lang/Enum {
+	public static final field Alternate Lcom/jakewharton/mosaic/terminal/TerminalScreen;
+	public static final field Inline Lcom/jakewharton/mosaic/terminal/TerminalScreen;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/jakewharton/mosaic/terminal/TerminalScreen;
+	public static fun values ()[Lcom/jakewharton/mosaic/terminal/TerminalScreen;
+}
+
 public final class com/jakewharton/mosaic/terminal/TerminalVersionEvent : com/jakewharton/mosaic/terminal/Event {
 	public fun <init> (Ljava/lang/String;)V
 	public fun equals (Ljava/lang/Object;)Z

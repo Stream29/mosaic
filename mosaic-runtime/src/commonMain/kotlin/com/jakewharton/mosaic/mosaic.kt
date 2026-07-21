@@ -25,6 +25,7 @@ import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.terminal.MouseTracking
 import com.jakewharton.mosaic.terminal.Terminal
+import com.jakewharton.mosaic.terminal.TerminalScreen
 import com.jakewharton.mosaic.ui.BoxMeasurePolicy
 import com.jakewharton.mosaic.ui.unit.IntOffset
 import kotlin.concurrent.Volatile
@@ -43,46 +44,34 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
+@OptIn(ExperimentalVersionOverloading::class)
 public fun runMosaicMain(
+	@IntroducedAt("0.19.0") mouseTracking: MouseTracking = MouseTracking.Disabled,
+	@IntroducedAt("0.19.0") screen: TerminalScreen = TerminalScreen.Inline,
 	content: @Composable () -> Unit,
 ) {
-	runMosaicMain(MouseTracking.Disabled, content)
+	runMosaicBlocking(mouseTracking = mouseTracking, screen = screen, content = content)
 }
 
-public fun runMosaicMain(
-	mouseTracking: MouseTracking,
-	content: @Composable () -> Unit,
-) {
-	runMosaicBlocking(mouseTracking = mouseTracking, content = content)
-}
-
+@OptIn(ExperimentalVersionOverloading::class)
 public fun runMosaicBlocking(
 	onNonInteractive: NonInteractivePolicy = Exit,
-	content: @Composable () -> Unit,
-): Boolean {
-	return runMosaicBlocking(onNonInteractive, MouseTracking.Disabled, content)
-}
-
-public fun runMosaicBlocking(
-	onNonInteractive: NonInteractivePolicy = Exit,
-	mouseTracking: MouseTracking,
+	@IntroducedAt("0.19.0") mouseTracking: MouseTracking = MouseTracking.Disabled,
+	@IntroducedAt("0.19.0") screen: TerminalScreen = TerminalScreen.Inline,
 	content: @Composable () -> Unit,
 ): Boolean {
 	return runBlocking {
-		runMosaic(onNonInteractive, mouseTracking, content)
+		runMosaic(onNonInteractive, mouseTracking, screen, content)
 	}
 }
 
+@OptIn(ExperimentalVersionOverloading::class)
 public suspend fun runMosaic(
 	onNonInteractive: NonInteractivePolicy = Exit,
+	@IntroducedAt("0.19.0") mouseTracking: MouseTracking = MouseTracking.Disabled,
+	@IntroducedAt("0.19.0") screen: TerminalScreen = TerminalScreen.Inline,
 	content: @Composable () -> Unit,
-): Boolean = runMosaic(onNonInteractive, MouseTracking.Disabled, content)
-
-public suspend fun runMosaic(
-	onNonInteractive: NonInteractivePolicy = Exit,
-	mouseTracking: MouseTracking,
-	content: @Composable () -> Unit,
-): Boolean = withTerminal(onNonInteractive, mouseTracking) { terminal ->
+): Boolean = withTerminal(onNonInteractive, mouseTracking, screen) { terminal ->
 	val rendering = if (env("MOSAIC_DEBUG_RENDERING") == "true") {
 		DebugRendering(terminal.capabilities)
 	} else {

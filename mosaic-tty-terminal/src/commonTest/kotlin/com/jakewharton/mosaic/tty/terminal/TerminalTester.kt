@@ -4,6 +4,7 @@ import assertk.assertThat
 import assertk.assertions.isEmpty
 import com.jakewharton.mosaic.terminal.MouseTracking
 import com.jakewharton.mosaic.terminal.Terminal
+import com.jakewharton.mosaic.terminal.TerminalScreen
 import com.jakewharton.mosaic.tty.TestTerminal
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -44,6 +45,7 @@ class TerminalTester(
 
 	suspend fun withTerminal(
 		mouseTracking: MouseTracking = MouseTracking.Disabled,
+		screen: TerminalScreen = TerminalScreen.Inline,
 		block: suspend Terminal.(setup: ByteString) -> Unit,
 	): ByteString {
 		expects.close()
@@ -80,7 +82,7 @@ class TerminalTester(
 		coroutineScope {
 			var readJob = launch(Dispatchers.IO) { readUntilInterrupted() }
 			try {
-				testTerminal.tty.asTerminalIn(this, mouseTracking).use { terminal ->
+				testTerminal.tty.asTerminalIn(this, mouseTracking, screen).use { terminal ->
 					testTerminal.interruptTtyRead()
 					readJob.cancelAndJoin()
 

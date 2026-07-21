@@ -9,16 +9,17 @@ public abstract interface class com/jakewharton/mosaic/Mosaic {
 
 public final class com/jakewharton/mosaic/MosaicKt {
 	public static final fun Mosaic (Lkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function1;Lcom/jakewharton/mosaic/terminal/Terminal;)Lcom/jakewharton/mosaic/Mosaic;
-	public static final fun runMosaic (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lcom/jakewharton/mosaic/terminal/MouseTracking;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static final fun runMosaic (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun runMosaic$default (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lcom/jakewharton/mosaic/terminal/MouseTracking;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun runMosaic (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lcom/jakewharton/mosaic/terminal/MouseTracking;Lcom/jakewharton/mosaic/terminal/TerminalScreen;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final synthetic fun runMosaic (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun runMosaic$default (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lcom/jakewharton/mosaic/terminal/MouseTracking;Lcom/jakewharton/mosaic/terminal/TerminalScreen;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static synthetic fun runMosaic$default (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun runMosaicBlocking (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lcom/jakewharton/mosaic/terminal/MouseTracking;Lkotlin/jvm/functions/Function2;)Z
-	public static final fun runMosaicBlocking (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lkotlin/jvm/functions/Function2;)Z
-	public static synthetic fun runMosaicBlocking$default (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lcom/jakewharton/mosaic/terminal/MouseTracking;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Z
+	public static final fun runMosaicBlocking (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lcom/jakewharton/mosaic/terminal/MouseTracking;Lcom/jakewharton/mosaic/terminal/TerminalScreen;Lkotlin/jvm/functions/Function2;)Z
+	public static final synthetic fun runMosaicBlocking (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lkotlin/jvm/functions/Function2;)Z
+	public static synthetic fun runMosaicBlocking$default (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lcom/jakewharton/mosaic/terminal/MouseTracking;Lcom/jakewharton/mosaic/terminal/TerminalScreen;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Z
 	public static synthetic fun runMosaicBlocking$default (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Z
-	public static final fun runMosaicMain (Lcom/jakewharton/mosaic/terminal/MouseTracking;Lkotlin/jvm/functions/Function2;)V
-	public static final fun runMosaicMain (Lkotlin/jvm/functions/Function2;)V
+	public static final fun runMosaicMain (Lcom/jakewharton/mosaic/terminal/MouseTracking;Lcom/jakewharton/mosaic/terminal/TerminalScreen;Lkotlin/jvm/functions/Function2;)V
+	public static final synthetic fun runMosaicMain (Lkotlin/jvm/functions/Function2;)V
+	public static synthetic fun runMosaicMain$default (Lcom/jakewharton/mosaic/terminal/MouseTracking;Lcom/jakewharton/mosaic/terminal/TerminalScreen;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 }
 
 public final class com/jakewharton/mosaic/NonInteractivePolicy : java/lang/Enum {

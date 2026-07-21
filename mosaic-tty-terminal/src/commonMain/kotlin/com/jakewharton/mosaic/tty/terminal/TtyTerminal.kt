@@ -19,6 +19,7 @@ import com.jakewharton.mosaic.terminal.PrimaryDeviceAttributesEvent
 import com.jakewharton.mosaic.terminal.ResizeEvent
 import com.jakewharton.mosaic.terminal.SystemThemeEvent
 import com.jakewharton.mosaic.terminal.Terminal
+import com.jakewharton.mosaic.terminal.TerminalScreen
 import com.jakewharton.mosaic.terminal.TerminalVersionEvent
 import com.jakewharton.mosaic.tty.Tty
 import kotlin.time.Duration.Companion.seconds
@@ -88,11 +89,19 @@ public suspend fun Tty.asTerminalIn(
 	scope: CoroutineScope,
 	/** When true, each terminal event will be immediately followed by a matching [DebugEvent]. */
 	emitDebugEvents: Boolean = false,
-): Terminal = asTerminalIn(scope, MouseTracking.Disabled, emitDebugEvents)
+): Terminal = asTerminalIn(scope, MouseTracking.Disabled, TerminalScreen.Inline, emitDebugEvents)
 
 public suspend fun Tty.asTerminalIn(
 	scope: CoroutineScope,
 	mouseTracking: MouseTracking,
+	/** When true, each terminal event will be immediately followed by a matching [DebugEvent]. */
+	emitDebugEvents: Boolean = false,
+): Terminal = asTerminalIn(scope, mouseTracking, TerminalScreen.Inline, emitDebugEvents)
+
+public suspend fun Tty.asTerminalIn(
+	scope: CoroutineScope,
+	mouseTracking: MouseTracking,
+	screen: TerminalScreen,
 	/** When true, each terminal event will be immediately followed by a matching [DebugEvent]. */
 	emitDebugEvents: Boolean = false,
 ): Terminal {
@@ -140,6 +149,7 @@ public suspend fun Tty.asTerminalIn(
 					false -> write(cursorDisable)
 					null -> Unit
 				}
+				if (screen == TerminalScreen.Alternate) write(alternateScreenDisable)
 				reset()
 			},
 			block = {
@@ -151,6 +161,10 @@ public suspend fun Tty.asTerminalIn(
 				}
 			},
 		)
+	}
+
+	if (screen == TerminalScreen.Alternate) {
+		write(alternateScreenEnable)
 	}
 
 	write("${CSI}0c")

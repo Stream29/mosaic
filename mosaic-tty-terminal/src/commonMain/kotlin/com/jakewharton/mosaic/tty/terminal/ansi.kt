@@ -9,6 +9,9 @@ internal const val DCS = "${ESC}P"
 internal const val OSC = "$ESC]"
 internal const val SS3 = "${ESC}O"
 
+internal const val alternateScreenEnable = "$CSI?1049h"
+internal const val alternateScreenDisable = "$CSI?1049l"
+
 internal const val cursorMode = 25
 internal const val cursorEnable = "$CSI?${cursorMode}h"
 internal const val cursorDisable = "$CSI?${cursorMode}l"

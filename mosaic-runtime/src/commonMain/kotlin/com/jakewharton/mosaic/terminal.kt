@@ -9,6 +9,7 @@ import com.jakewharton.mosaic.terminal.AnsiLevel
 import com.jakewharton.mosaic.terminal.Event
 import com.jakewharton.mosaic.terminal.MouseTracking
 import com.jakewharton.mosaic.terminal.Terminal
+import com.jakewharton.mosaic.terminal.TerminalScreen
 import com.jakewharton.mosaic.tty.Tty
 import com.jakewharton.mosaic.tty.terminal.asTerminalIn
 import kotlinx.coroutines.channels.Channel
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 internal suspend fun withTerminal(
 	onNonInteractive: NonInteractivePolicy,
 	mouseTracking: MouseTracking,
+	screen: TerminalScreen,
 	block: suspend (Terminal) -> Unit,
 ): Boolean = coroutineScope {
 	val tty = if (onNonInteractive != AssumeAndIgnore) {
@@ -38,7 +40,7 @@ internal suspend fun withTerminal(
 	tty.use {
 		// Wait for terminal reader jobs to exit before Tty.close() releases their file descriptors.
 		coroutineScope {
-			val terminal = tty?.asTerminalIn(this, mouseTracking) ?: NonInteractiveTerminal
+			val terminal = tty?.asTerminalIn(this, mouseTracking, screen) ?: NonInteractiveTerminal
 			terminal.use { block(it) }
 		}
 	}

@@ -31,6 +31,17 @@ final enum class com.jakewharton.mosaic.terminal/MouseTracking : kotlin/Enum<com
     final fun values(): kotlin/Array<com.jakewharton.mosaic.terminal/MouseTracking> // com.jakewharton.mosaic.terminal/MouseTracking.values|values#static(){}[0]
 }
 
+final enum class com.jakewharton.mosaic.terminal/TerminalScreen : kotlin/Enum<com.jakewharton.mosaic.terminal/TerminalScreen> { // com.jakewharton.mosaic.terminal/TerminalScreen|null[0]
+    enum entry Alternate // com.jakewharton.mosaic.terminal/TerminalScreen.Alternate|null[0]
+    enum entry Inline // com.jakewharton.mosaic.terminal/TerminalScreen.Inline|null[0]
+
+    final val entries // com.jakewharton.mosaic.terminal/TerminalScreen.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.jakewharton.mosaic.terminal/TerminalScreen> // com.jakewharton.mosaic.terminal/TerminalScreen.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.jakewharton.mosaic.terminal/TerminalScreen // com.jakewharton.mosaic.terminal/TerminalScreen.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.jakewharton.mosaic.terminal/TerminalScreen> // com.jakewharton.mosaic.terminal/TerminalScreen.values|values#static(){}[0]
+}
+
 abstract interface com.jakewharton.mosaic.terminal/Terminal : kotlin/AutoCloseable { // com.jakewharton.mosaic.terminal/Terminal|null[0]
     abstract val capabilities // com.jakewharton.mosaic.terminal/Terminal.capabilities|{}capabilities[0]
         abstract fun <get-capabilities>(): com.jakewharton.mosaic.terminal/Terminal.Capabilities // com.jakewharton.mosaic.terminal/Terminal.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
