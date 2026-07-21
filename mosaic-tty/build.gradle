@@ -291,3 +291,7 @@ cklib {
 		it.language = C
 	}
 }
+
+tasks.withType(co.touchlab.cklib.gradle.CompileToBitcode).configureEach {
+	notCompatibleWithConfigurationCache('The cklib task captures Gradle project and Kotlin compilation state.')
+}
