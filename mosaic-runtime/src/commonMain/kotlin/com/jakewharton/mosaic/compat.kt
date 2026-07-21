@@ -2,6 +2,7 @@ package com.jakewharton.mosaic
 
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.terminal.KeyboardEvent
+import de.cketti.codepoints.CodePoints
 
 internal fun KeyboardEvent.toKeyEventOrNull(): KeyEvent? {
 	if (eventType != KeyboardEvent.EventTypePress) {
@@ -9,11 +10,10 @@ internal fun KeyboardEvent.toKeyEventOrNull(): KeyEvent? {
 	}
 
 	return KeyEvent(
-		key = when (val codepoint = codepoint) {
+		key = text ?: when (val codepoint = codepoint) {
 			9 -> "Tab"
 			13 -> "Enter"
 			27 -> "Escape"
-			in 32..126 -> codepoint.toChar().toString()
 			127 -> "Backspace"
 			57350 -> "ArrowLeft"
 			57351 -> "ArrowRight"
@@ -26,6 +26,8 @@ internal fun KeyboardEvent.toKeyEventOrNull(): KeyEvent? {
 			57356 -> "Home"
 			57357 -> "End"
 			in 57364..57398 -> "F" + (codepoint - 57363)
+			in 0x20..0xd7ff -> codepoint.toChar().toString()
+			in 0xe000..0x10ffff -> CodePoints.toChars(codepoint).concatToString()
 			else -> throw UnsupportedOperationException(toString())
 		},
 		alt = alt,
