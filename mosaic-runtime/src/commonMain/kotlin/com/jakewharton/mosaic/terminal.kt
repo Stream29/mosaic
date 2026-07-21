@@ -36,8 +36,11 @@ internal suspend fun withTerminal(
 	}
 
 	tty.use {
-		val terminal = tty?.asTerminalIn(this, mouseTracking) ?: NonInteractiveTerminal
-		terminal.use { block(it) }
+		// Wait for terminal reader jobs to exit before Tty.close() releases their file descriptors.
+		coroutineScope {
+			val terminal = tty?.asTerminalIn(this, mouseTracking) ?: NonInteractiveTerminal
+			terminal.use { block(it) }
+		}
 	}
 
 	true
