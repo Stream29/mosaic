@@ -164,6 +164,15 @@ public final class com/jakewharton/mosaic/layout/KeyModifierKt {
 	public static final fun onPreviewKeyEvent (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
 }
 
+public final class com/jakewharton/mosaic/layout/LayoutCoordinates {
+	public static final field $stable I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPosition--lBJcEo ()J
+	public final fun getSize-Usd9Mdw ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/jakewharton/mosaic/layout/LayoutIdKt {
 	public static final fun getLayoutId (Lcom/jakewharton/mosaic/layout/Measurable;)Ljava/lang/Object;
 	public static final fun layoutId (Lcom/jakewharton/mosaic/modifier/Modifier;Ljava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
@@ -208,6 +217,10 @@ public final class com/jakewharton/mosaic/layout/OffsetKt {
 	public static final fun offset (Lcom/jakewharton/mosaic/modifier/Modifier;II)Lcom/jakewharton/mosaic/modifier/Modifier;
 	public static final fun offset (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function0;)Lcom/jakewharton/mosaic/modifier/Modifier;
 	public static synthetic fun offset$default (Lcom/jakewharton/mosaic/modifier/Modifier;IIILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
+}
+
+public final class com/jakewharton/mosaic/layout/OnPlacedModifierKt {
+	public static final fun onPlaced (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
 }
 
 public final class com/jakewharton/mosaic/layout/PaddingKt {

@@ -5,6 +5,8 @@ import com.jakewharton.mosaic.TextSurface
 import com.jakewharton.mosaic.layout.Placeable.PlacementScope
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.ui.unit.Constraints
+import com.jakewharton.mosaic.ui.unit.IntOffset
+import com.jakewharton.mosaic.ui.unit.IntSize
 
 internal fun interface DebugPolicy {
 	fun MosaicNode.renderDebug(): String
@@ -45,7 +47,7 @@ internal abstract class MosaicNodeLayer :
 	final override var y = 0
 		private set
 
-	final override fun placeAt(x: Int, y: Int) {
+	override fun placeAt(x: Int, y: Int) {
 		this.x = x
 		this.y = y
 		measureResult.placeChildren()
@@ -90,6 +92,7 @@ internal class MosaicNode(
 	val children = ArrayList<MosaicNode>()
 
 	private val bottomLayer: MosaicNodeLayer = BottomLayer(this)
+	private val onPlacedHandles = mutableListOf<OnPlacedHandle>()
 	var topLayer: MosaicNodeLayer = bottomLayer
 		private set
 
@@ -100,6 +103,7 @@ internal class MosaicNode(
 		private set
 
 	fun setModifier(modifier: Modifier) {
+		var onPlacedIndex = 0
 		topLayer = modifier.foldOut(bottomLayer) { element, nextLayer ->
 			var nextLayer = nextLayer
 			// The Modifier class can inherit from several key Modifier types
@@ -113,6 +117,13 @@ internal class MosaicNode(
 			if (element is KeyModifier) {
 				nextLayer = KeyLayer(element, nextLayer)
 			}
+			if (element is OnPlacedModifier) {
+				val handle = onPlacedHandles.getOrNull(onPlacedIndex)
+					?: OnPlacedHandle(element).also(onPlacedHandles::add)
+				onPlacedIndex++
+				handle.element = element
+				nextLayer = OnPlacedLayer(handle, nextLayer)
+			}
 			if (element is ParentDataModifier) {
 				parentData = element.modifyParentData(parentData)
 			}
@@ -121,6 +132,7 @@ internal class MosaicNode(
 			}
 			nextLayer
 		}
+		onPlacedHandles.subList(onPlacedIndex, onPlacedHandles.size).clear()
 	}
 
 	override fun measure(constraints: Constraints): Placeable = topLayer.apply { measure(constraints) }
@@ -263,4 +275,28 @@ private class KeyLayer(
 	override fun sendKeyEvent(keyEvent: KeyEvent) = element.onPreKeyEvent(keyEvent) ||
 		next.sendKeyEvent(keyEvent) ||
 		element.onKeyEvent(keyEvent)
+}
+
+private class OnPlacedHandle(
+	var element: OnPlacedModifier,
+) {
+	/** `null` until this modifier occurrence has been placed for the first time. */
+	var previousCoordinates: LayoutCoordinates? = null
+}
+
+private class OnPlacedLayer(
+	private val handle: OnPlacedHandle,
+	override val next: MosaicNodeLayer,
+) : MosaicNodeLayer() {
+	override fun placeAt(x: Int, y: Int) {
+		super.placeAt(x, y)
+		val coordinates = LayoutCoordinates(
+			position = IntOffset(this.x, this.y),
+			size = IntSize(width, height),
+		)
+		if (coordinates != handle.previousCoordinates) {
+			handle.previousCoordinates = coordinates
+			handle.element.onPlaced(coordinates)
+		}
+	}
 }
