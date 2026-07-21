@@ -17,6 +17,13 @@ internal const val focusMode = 1004
 internal const val focusEnable = "$CSI?${focusMode}h"
 internal const val focusDisable = "$CSI?${focusMode}l"
 
+// Disambiguate escape codes, report all keys, and report associated text.
+internal const val kittyKeyboardPush = "$CSI>25u"
+internal const val kittyKeyboardPop = "$CSI<u"
+
+internal const val modifyOtherKeysEnable = "$CSI>4;2m"
+internal const val modifyOtherKeysReset = "$CSI>4m"
+
 internal const val synchronizedOutputMode = 2026
 
 internal const val systemThemeMode = 2031

@@ -96,6 +96,8 @@ public suspend fun Tty.asTerminalIn(
 	// and was not already configured to our desired setting. Revert each toggled setting on exit.
 	var toggleCursor = false
 	var toggleFocus = false
+	var kittyKeyboardPushed = false
+	var modifyOtherKeysEnabled = false
 	var toggleInBandResize = false
 	var toggleSystemTheme = false
 
@@ -104,6 +106,8 @@ public suspend fun Tty.asTerminalIn(
 		withFinalizationHook(
 			hook = {
 				setCallback(null)
+				if (kittyKeyboardPushed) write(kittyKeyboardPop)
+				if (modifyOtherKeysEnabled) write(modifyOtherKeysReset)
 				if (toggleSystemTheme) write(systemThemeDisable)
 				if (toggleInBandResize) write(inBandResizeDisable)
 				if (toggleFocus) write(focusDisable)
@@ -243,6 +247,11 @@ public suspend fun Tty.asTerminalIn(
 				is KittyKeyboardQueryEvent -> {
 					if (stage == StageCapabilityQueries) {
 						kittyKeyboard = true
+						if (!kittyKeyboardPushed) {
+							kittyKeyboardPushed = true
+							parser.kittyDisambiguateEscapeCodes = true
+							write(kittyKeyboardPush)
+						}
 					}
 				}
 
@@ -331,6 +340,10 @@ public suspend fun Tty.asTerminalIn(
 		bootstrapDone.await()
 	}
 	stage = StageNormalOperation
+	if (!kittyKeyboardPushed) {
+		modifyOtherKeysEnabled = true
+		write(modifyOtherKeysEnable)
+	}
 
 	if (debugBootstrap) {
 		write("\r\n")

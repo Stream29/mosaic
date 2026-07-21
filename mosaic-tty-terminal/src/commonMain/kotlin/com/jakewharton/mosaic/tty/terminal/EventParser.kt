@@ -300,6 +300,7 @@ public class EventParser(
 						21 -> KeyboardEvent.F10
 						23 -> KeyboardEvent.F11
 						24 -> KeyboardEvent.F12
+						27 -> return parseCsiXtermModifyOtherKeys(buffer, delimiter + 1, finalIndex) ?: break@error
 						200 -> return BracketedPasteEvent(start = true)
 						201 -> return BracketedPasteEvent(start = false)
 						57427 -> KeyboardEvent.KpBegin
@@ -657,6 +658,32 @@ public class EventParser(
 		// Use 'offset' not 'end' because some sequences put data after the "final" index. This allows
 		// parsing of that trailing data to error and still be included in the unknown event.
 		return UnknownEvent(buffer.copyOfRange(start, offset))
+	}
+
+	/** Parses `CSI 27 ; modifier ; key ~`, the xterm modifyOtherKeys encoding. */
+	private fun parseCsiXtermModifyOtherKeys(
+		buffer: ByteArray,
+		modifierStart: Int,
+		finalIndex: Int,
+	): KeyboardEvent? {
+		val keyDelimiter = buffer.indexOfOrElse(
+			';'.code.toByte(),
+			modifierStart,
+			finalIndex,
+			orElse = { return null },
+		)
+		val modifier = buffer.parseIntDigits(
+			modifierStart,
+			keyDelimiter,
+			orElse = { return null },
+		)
+		if (modifier < 1) return null
+		val key = buffer.parseIntDigits(
+			keyDelimiter + 1,
+			finalIndex,
+			orElse = { return null },
+		)
+		return KeyboardEvent(key, modifiers = modifier - 1)
 	}
 
 	private fun parseCsiLegacyKeyboard(buffer: ByteArray, start: Int, end: Int, codepoint: Int): Event {
