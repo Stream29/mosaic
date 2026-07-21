@@ -15,9 +15,8 @@ import com.jakewharton.mosaic.ui.isSpecifiedColor
 import com.jakewharton.mosaic.ui.isSpecifiedUnderlineStyle
 import com.jakewharton.mosaic.ui.isUnspecifiedColor
 import com.jakewharton.mosaic.ui.isUnspecifiedUnderlineStyle
-import de.cketti.codepoints.appendCodePoint
 
-private val blankPixel = TextPixel(SpaceCharCodePoint)
+private val blankPixel = TextPixel(" ")
 
 public interface TextCanvas {
 	public val height: Int
@@ -35,7 +34,7 @@ internal class TextSurface(
 	var translationX = 0
 	var translationY = 0
 
-	private val cells = Array(width * height) { TextPixel(SpaceCharCodePoint) }
+	private val cells = Array(width * height) { TextPixel(" ") }
 
 	operator fun get(row: Int, column: Int): TextPixel {
 		val x = translationX + column
@@ -43,6 +42,54 @@ internal class TextSurface(
 		check(x in 0 until width)
 		check(y in 0 until height)
 		return cells[y * width + x]
+	}
+
+	fun replaceText(
+		row: Int,
+		column: Int,
+		text: String,
+		cellWidth: Int,
+	): TextPixel {
+		require(cellWidth > 0)
+		check(column >= 0 && column + cellWidth <= width - translationX)
+		for (offset in 0 until cellWidth) {
+			clearTextAt(row, column + offset)
+		}
+
+		val leader = get(row, column)
+		leader.text = text
+		leader.cellWidth = cellWidth
+		leader.continuationOffset = 0
+		for (offset in 1 until cellWidth) {
+			get(row, column + offset).apply {
+				this.text = ""
+				this.cellWidth = 0
+				continuationOffset = offset
+			}
+		}
+		return leader
+	}
+
+	fun textLeaderAt(row: Int, column: Int): TextPixel {
+		val pixel = get(row, column)
+		return if (pixel.isContinuation) {
+			get(row, column - pixel.continuationOffset)
+		} else {
+			pixel
+		}
+	}
+
+	private fun clearTextAt(row: Int, column: Int) {
+		val pixel = get(row, column)
+		val leaderColumn = column - pixel.continuationOffset
+		val occupiedWidth = get(row, leaderColumn).cellWidth.coerceAtLeast(1)
+		for (offset in 0 until occupiedWidth) {
+			get(row, leaderColumn + offset).apply {
+				text = " "
+				cellWidth = 1
+				continuationOffset = 0
+			}
+		}
 	}
 
 	override fun appendRowTo(appendable: Appendable, row: Int, ansiLevel: AnsiLevel, supportsKittyUnderlines: Boolean) {
@@ -65,6 +112,7 @@ internal class TextSurface(
 		var lastPixel = blankPixel
 		for (columnIndex in rowStart until rowStop) {
 			val pixel = cells[columnIndex]
+			if (pixel.isContinuation) continue
 
 			if (ansiLevel != AnsiLevel.NONE) {
 				if (pixel.foreground != lastPixel.foreground) {
@@ -134,7 +182,7 @@ internal class TextSurface(
 				}
 			}
 
-			appendable.appendCodePoint(pixel.codePoint)
+			appendable.append(pixel.text)
 			lastPixel = pixel
 		}
 
@@ -204,15 +252,20 @@ internal class TextSurface(
 	}
 }
 
-internal class TextPixel(var codePoint: Int) {
+internal class TextPixel(var text: String) {
+	var cellWidth: Int = 1
+	var continuationOffset: Int = 0
 	var background: Color = Color.Unspecified
 	var foreground: Color = Color.Unspecified
 	var textStyle: TextStyle = TextStyle.Empty
 	var underlineStyle: UnderlineStyle = UnderlineStyle.Unspecified
 	var underlineColor: Color = Color.Unspecified
 
+	val isContinuation: Boolean
+		get() = continuationOffset > 0
+
 	fun isEmpty(): Boolean {
-		return codePoint == SpaceCharCodePoint &&
+		return (isContinuation || text == " ") &&
 			background.isUnspecifiedColor &&
 			foreground.isUnspecifiedColor &&
 			textStyle.isEmptyTextStyle &&
@@ -222,7 +275,7 @@ internal class TextPixel(var codePoint: Int) {
 
 	override fun toString() = buildString {
 		append("TextPixel(\"")
-		appendCodePoint(codePoint)
+		append(text)
 		append("\"")
 		if (background.isSpecifiedColor) {
 			append(" bg=")

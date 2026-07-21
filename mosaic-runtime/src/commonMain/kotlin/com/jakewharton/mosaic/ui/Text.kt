@@ -9,6 +9,10 @@ import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.text.AnnotatedString
 import com.jakewharton.mosaic.text.AnnotatedStringTextLayout
 import com.jakewharton.mosaic.text.StringTextLayout
+import com.jakewharton.mosaic.text.firstFittingTerminalEndIndex
+import com.jakewharton.mosaic.text.takeFirstFittingTerminalWidth
+import com.jakewharton.mosaic.ui.unit.constrainHeight
+import com.jakewharton.mosaic.ui.unit.constrainWidth
 import kotlin.jvm.JvmName
 
 @Composable
@@ -31,11 +35,23 @@ public fun Text(
 		},
 		measurePolicy = {
 			layout.measure()
-			layout(layout.width, layout.height)
+			layout(
+				constraints.constrainWidth(layout.width),
+				constraints.constrainHeight(layout.height),
+			)
 		},
 		modifier = modifier.drawBehind {
-			layout.lines.forEachIndexed { row, line ->
-				drawText(row, 0, line, color, background, textStyle, underlineStyle, underlineColor)
+			layout.lines.take(height).forEachIndexed { row, line ->
+				drawText(
+					row,
+					0,
+					line.takeFirstFittingTerminalWidth(width),
+					color,
+					background,
+					textStyle,
+					underlineStyle,
+					underlineColor,
+				)
 			}
 		},
 	)
@@ -61,11 +77,24 @@ public fun Text(
 		},
 		measurePolicy = {
 			layout.measure()
-			layout(layout.width, layout.height)
+			layout(
+				constraints.constrainWidth(layout.width),
+				constraints.constrainHeight(layout.height),
+			)
 		},
 		modifier = modifier.drawBehind {
-			layout.lines.forEachIndexed { row, line ->
-				drawText(row, 0, line, color, background, textStyle, underlineStyle, underlineColor)
+			layout.lines.take(height).forEachIndexed { row, line ->
+				val end = line.text.firstFittingTerminalEndIndex(width)
+				drawText(
+					row,
+					0,
+					line.subSequence(0, end),
+					color,
+					background,
+					textStyle,
+					underlineStyle,
+					underlineColor,
+				)
 			}
 		},
 	)

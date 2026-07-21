@@ -1,6 +1,7 @@
 [versions]
 kotlin = "2.3.21"
 kotlinx-coroutines = "1.11.0"
+unicode-kotlin = "0.1.1"
 
 [libraries]
 kotlin-plugin-core = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -35,6 +36,8 @@ ktlint-composeRules = "io.nlopez.compose.rules:ktlint:0.6.2"
 
 clikt = "com.github.ajalt.clikt:clikt:5.1.0"
 codepoints = "de.cketti.unicode:kotlin-codepoints:0.11.0"
+unicode-segmentation-kotlin = { module = "io.github.kotlinmania:unicode-segmentation-kotlin", version.ref = "unicode-kotlin" }
+unicode-width-kotlin = { module = "io.github.kotlinmania:unicode-width-kotlin", version.ref = "unicode-kotlin" }
 finalizationHook = "com.jakewharton.finalization:finalization-hook:0.1.0"
 apache-compress = "org.apache.commons:commons-compress:1.28.0"
 

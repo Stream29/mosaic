@@ -26,6 +26,12 @@ kotlin {
 				implementation projects.mosaicTtyTerminal
 				implementation libs.androidx.collection
 				implementation libs.codepoints
+				implementation libs.unicode.segmentation.kotlin.get().copy().tap {
+					transitive = false
+				}
+				implementation libs.unicode.width.kotlin.get().copy().tap {
+					transitive = false
+				}
 			}
 		}
 		commonTest {

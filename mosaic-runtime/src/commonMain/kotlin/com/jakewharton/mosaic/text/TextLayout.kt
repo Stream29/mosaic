@@ -1,7 +1,5 @@
 package com.jakewharton.mosaic.text
 
-import de.cketti.codepoints.codePointCount
-
 internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 
 	var value: T = initialValue
@@ -39,13 +37,14 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 		if (!dirty) return
 
 		val lines = value.splitByLines()
-		width = lines.maxOf { it.codePointCount(0, it.length) }
+		width = lines.maxOf(::terminalCellWidth)
 		height = lines.size
 		this.lines = lines
 		dirty = false
 	}
 
 	protected abstract fun T.splitByLines(): List<T>
+	protected abstract fun terminalCellWidth(line: T): Int
 }
 
 internal class StringTextLayout : TextLayout<String>(initialValue = "") {
@@ -53,6 +52,8 @@ internal class StringTextLayout : TextLayout<String>(initialValue = "") {
 	override fun String.splitByLines(): List<String> {
 		return this.split("\n")
 	}
+
+	override fun terminalCellWidth(line: String): Int = line.terminalCellWidth()
 }
 
 internal class AnnotatedStringTextLayout :
@@ -63,4 +64,6 @@ internal class AnnotatedStringTextLayout :
 	override fun AnnotatedString.splitByLines(): List<AnnotatedString> {
 		return this.split("\n")
 	}
+
+	override fun terminalCellWidth(line: AnnotatedString): Int = line.text.terminalCellWidth()
 }

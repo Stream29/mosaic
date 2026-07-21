@@ -26,6 +26,7 @@ import com.jakewharton.mosaic.isUnspecifiedCodePoint
 import com.jakewharton.mosaic.text.AnnotatedString
 import com.jakewharton.mosaic.text.SpanStyle
 import com.jakewharton.mosaic.text.getLocalRawSpanStyles
+import com.jakewharton.mosaic.text.terminalTextClusters
 import com.jakewharton.mosaic.ui.Color
 import com.jakewharton.mosaic.ui.TextStyle
 import com.jakewharton.mosaic.ui.UnderlineStyle
@@ -36,7 +37,7 @@ import com.jakewharton.mosaic.ui.isUnspecifiedColor
 import com.jakewharton.mosaic.ui.isUnspecifiedTextStyle
 import com.jakewharton.mosaic.ui.unit.IntOffset
 import com.jakewharton.mosaic.ui.unit.IntSize
-import de.cketti.codepoints.codePointAt
+import de.cketti.codepoints.CodePoints
 import kotlin.math.max
 
 public interface DrawScope {
@@ -266,23 +267,19 @@ internal open class TextCanvasDrawScope(
 		underlineColor: Color,
 		spanStylesProvider: ((start: Int, end: Int) -> List<SpanStyle>)?,
 	) {
-		var pixelIndex = 0
 		var characterColumn = column
-		while (pixelIndex < text.length) {
-			val character = canvas[row, characterColumn++]
-
-			val pixelEnd = if (text[pixelIndex].isHighSurrogate()) {
-				pixelIndex + 2
-			} else {
-				pixelIndex + 1
+		for ((start, end, cellWidth) in text.terminalTextClusters()) {
+			val character = canvas.replaceText(
+				row = row,
+				column = characterColumn,
+				text = text.substring(start, end),
+				cellWidth = cellWidth,
+			)
+			character.updateTextPixel(foreground, background, textStyle, underlineStyle, underlineColor)
+			spanStylesProvider?.invoke(start, end)?.forEach {
+				character.updateTextPixel(it.color, it.background, it.textStyle, it.underlineStyle, it.underlineColor)
 			}
-
-			character.updateTextPixel(text.codePointAt(pixelIndex), foreground, background, textStyle, underlineStyle, underlineColor)
-			spanStylesProvider?.invoke(pixelIndex, pixelEnd)?.forEach {
-				character.updateTextPixel(UnspecifiedCodePoint, it.color, it.background, it.textStyle, it.underlineStyle, it.underlineColor)
-			}
-
-			pixelIndex = pixelEnd
+			characterColumn += cellWidth
 		}
 	}
 
@@ -296,20 +293,26 @@ internal open class TextCanvasDrawScope(
 		underlineStyle: UnderlineStyle = UnderlineStyle.Unspecified,
 		underlineColor: Color = Color.Unspecified,
 	) {
-		canvas[y, x].updateTextPixel(codePoint, foreground, background, textStyle, underlineStyle, underlineColor)
+		val pixel = if (codePoint.isSpecifiedCodePoint) {
+			canvas.replaceText(
+				row = y,
+				column = x,
+				text = CodePoints.toChars(codePoint).concatToString(),
+				cellWidth = 1,
+			)
+		} else {
+			canvas.textLeaderAt(y, x)
+		}
+		pixel.updateTextPixel(foreground, background, textStyle, underlineStyle, underlineColor)
 	}
 
 	private inline fun TextPixel.updateTextPixel(
-		codePoint: Int,
 		foreground: Color,
 		background: Color,
 		textStyle: TextStyle,
 		underlineStyle: UnderlineStyle,
 		underlineColor: Color,
 	) {
-		if (codePoint.isSpecifiedCodePoint) {
-			this.codePoint = codePoint
-		}
 		if (foreground.isSpecifiedColor) {
 			this.foreground = foreground
 		}

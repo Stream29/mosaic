@@ -17,7 +17,9 @@ internal fun interface NoContentMeasurePolicy {
 	fun NoContentMeasureScope.measure(): MeasureResult
 }
 
-internal sealed class NoContentMeasureScope {
+internal class NoContentMeasureScope internal constructor(
+	val constraints: Constraints,
+) {
 	fun layout(
 		width: Int,
 		height: Int,
@@ -31,8 +33,6 @@ internal sealed class NoContentMeasureScope {
 	) : MeasureResult {
 		override fun placeChildren() {}
 	}
-
-	internal companion object : NoContentMeasureScope()
 }
 
 @Composable
@@ -57,7 +57,7 @@ private class NoContentMeasurePolicyMeasurePolicy(
 		constraints: Constraints,
 	): MeasureResult {
 		check(measurables.isEmpty())
-		return noContentMeasurePolicy.run { NoContentMeasureScope.measure() }
+		return noContentMeasurePolicy.run { NoContentMeasureScope(constraints).measure() }
 	}
 }
 
