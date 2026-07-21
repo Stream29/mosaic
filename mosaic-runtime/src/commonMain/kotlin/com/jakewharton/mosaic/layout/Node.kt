@@ -1,7 +1,20 @@
 package com.jakewharton.mosaic.layout
 
+import com.jakewharton.mosaic.TerminalCursorPosition
 import com.jakewharton.mosaic.TextCanvas
 import com.jakewharton.mosaic.TextSurface
+import com.jakewharton.mosaic.focus.FocusBounds
+import com.jakewharton.mosaic.focus.FocusCursorModifier
+import com.jakewharton.mosaic.focus.FocusEventModifier
+import com.jakewharton.mosaic.focus.FocusEventNode
+import com.jakewharton.mosaic.focus.FocusRequesterModifier
+import com.jakewharton.mosaic.focus.FocusRequesterNode
+import com.jakewharton.mosaic.focus.FocusScopeHandle
+import com.jakewharton.mosaic.focus.FocusScopeModifier
+import com.jakewharton.mosaic.focus.FocusTargetHandle
+import com.jakewharton.mosaic.focus.FocusTargetModifier
+import com.jakewharton.mosaic.focus.FocusTree
+import com.jakewharton.mosaic.focus.FocusTreeCollector
 import com.jakewharton.mosaic.layout.Placeable.PlacementScope
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.ui.unit.Constraints
@@ -61,6 +74,10 @@ internal abstract class MosaicNodeLayer :
 		return next?.sendKeyEvent(keyEvent) ?: false
 	}
 
+	open fun collectFocus(collector: FocusTreeCollector) {
+		next?.collectFocus(collector)
+	}
+
 	override fun minIntrinsicWidth(height: Int): Int {
 		return next?.minIntrinsicWidth(height) ?: 0
 	}
@@ -92,6 +109,10 @@ internal class MosaicNode(
 	val children = ArrayList<MosaicNode>()
 
 	private val bottomLayer: MosaicNodeLayer = BottomLayer(this)
+	private val focusTargets = mutableListOf<FocusTargetHandle>()
+	private val focusScopes = mutableListOf<FocusScopeHandle>()
+	private val focusRequesterNodes = mutableListOf<FocusRequesterNode>()
+	private val focusEventNodes = mutableListOf<FocusEventNode>()
 	private val onPlacedHandles = mutableListOf<OnPlacedHandle>()
 	var topLayer: MosaicNodeLayer = bottomLayer
 		private set
@@ -103,6 +124,10 @@ internal class MosaicNode(
 		private set
 
 	fun setModifier(modifier: Modifier) {
+		var focusTargetIndex = 0
+		var focusScopeIndex = 0
+		var focusRequesterIndex = 0
+		var focusEventIndex = 0
 		var onPlacedIndex = 0
 		topLayer = modifier.foldOut(bottomLayer) { element, nextLayer ->
 			var nextLayer = nextLayer
@@ -116,6 +141,39 @@ internal class MosaicNode(
 			}
 			if (element is KeyModifier) {
 				nextLayer = KeyLayer(element, nextLayer)
+			}
+			if (element is FocusTargetModifier) {
+				val handle = focusTargets.getOrNull(focusTargetIndex)
+					?: FocusTargetHandle().also(focusTargets::add)
+				focusTargetIndex++
+				handle.enabled = element.enabled
+				handle.autoFocus = element.autoFocus
+				nextLayer = FocusTargetLayer(handle, nextLayer)
+			}
+			if (element is FocusScopeModifier) {
+				val handle = focusScopes.getOrNull(focusScopeIndex)
+					?: FocusScopeHandle().also(focusScopes::add)
+				focusScopeIndex++
+				handle.enabled = element.enabled
+				handle.trapsFocus = element.trapsFocus
+				nextLayer = FocusScopeLayer(handle, nextLayer)
+			}
+			if (element is FocusRequesterModifier) {
+				val node = focusRequesterNodes.getOrNull(focusRequesterIndex)
+					?: FocusRequesterNode(element.focusRequester).also(focusRequesterNodes::add)
+				focusRequesterIndex++
+				node.requester = element.focusRequester
+				nextLayer = FocusRequesterLayer(node, nextLayer)
+			}
+			if (element is FocusEventModifier) {
+				val node = focusEventNodes.getOrNull(focusEventIndex)
+					?: FocusEventNode(element.onFocusChanged).also(focusEventNodes::add)
+				focusEventIndex++
+				node.onFocusChanged = element.onFocusChanged
+				nextLayer = FocusEventLayer(node, nextLayer)
+			}
+			if (element is FocusCursorModifier) {
+				nextLayer = FocusCursorLayer(element, nextLayer)
 			}
 			if (element is OnPlacedModifier) {
 				val handle = onPlacedHandles.getOrNull(onPlacedIndex)
@@ -132,6 +190,10 @@ internal class MosaicNode(
 			}
 			nextLayer
 		}
+		focusTargets.subList(focusTargetIndex, focusTargets.size).clear()
+		focusScopes.subList(focusScopeIndex, focusScopes.size).clear()
+		focusRequesterNodes.subList(focusRequesterIndex, focusRequesterNodes.size).clear()
+		focusEventNodes.subList(focusEventIndex, focusEventNodes.size).clear()
 		onPlacedHandles.subList(onPlacedIndex, onPlacedHandles.size).clear()
 	}
 
@@ -159,6 +221,12 @@ internal class MosaicNode(
 
 	fun sendKeyEvent(keyEvent: KeyEvent): Boolean {
 		return topLayer.sendKeyEvent(keyEvent)
+	}
+
+	fun collectFocusTree(): FocusTree {
+		val collector = FocusTreeCollector()
+		topLayer.collectFocus(collector)
+		return collector.build()
 	}
 
 	override fun minIntrinsicWidth(height: Int): Int {
@@ -204,6 +272,12 @@ private class BottomLayer(
 			}
 		}
 		return false
+	}
+
+	override fun collectFocus(collector: FocusTreeCollector) {
+		for (child in node.children) {
+			child.topLayer.collectFocus(collector)
+		}
 	}
 
 	override fun minIntrinsicWidth(height: Int): Int {
@@ -275,7 +349,78 @@ private class KeyLayer(
 	override fun sendKeyEvent(keyEvent: KeyEvent) = element.onPreKeyEvent(keyEvent) ||
 		next.sendKeyEvent(keyEvent) ||
 		element.onKeyEvent(keyEvent)
+
+	override fun collectFocus(collector: FocusTreeCollector) {
+		collector.visitKeyModifier(element) {
+			next.collectFocus(collector)
+		}
+	}
 }
+
+private class FocusTargetLayer(
+	private val handle: FocusTargetHandle,
+	override val next: MosaicNodeLayer,
+) : MosaicNodeLayer() {
+	override fun collectFocus(collector: FocusTreeCollector) {
+		collector.visitFocusTarget(handle, focusBounds()) {
+			next.collectFocus(collector)
+		}
+	}
+}
+
+private class FocusScopeLayer(
+	private val handle: FocusScopeHandle,
+	override val next: MosaicNodeLayer,
+) : MosaicNodeLayer() {
+	override fun collectFocus(collector: FocusTreeCollector) {
+		collector.visitFocusScope(handle, focusBounds()) {
+			next.collectFocus(collector)
+		}
+	}
+}
+
+private class FocusRequesterLayer(
+	private val node: FocusRequesterNode,
+	override val next: MosaicNodeLayer,
+) : MosaicNodeLayer() {
+	override fun collectFocus(collector: FocusTreeCollector) {
+		collector.visitFocusRequester(node) {
+			next.collectFocus(collector)
+		}
+	}
+}
+
+private class FocusEventLayer(
+	private val node: FocusEventNode,
+	override val next: MosaicNodeLayer,
+) : MosaicNodeLayer() {
+	override fun collectFocus(collector: FocusTreeCollector) {
+		collector.visitFocusEvent(node) {
+			next.collectFocus(collector)
+		}
+	}
+}
+
+private class FocusCursorLayer(
+	private val element: FocusCursorModifier,
+	override val next: MosaicNodeLayer,
+) : MosaicNodeLayer() {
+	override fun collectFocus(collector: FocusTreeCollector) {
+		collector.visitFocusCursor(
+			TerminalCursorPosition(
+				row = y + element.row,
+				column = x + element.column,
+			),
+		) {
+			next.collectFocus(collector)
+		}
+	}
+}
+
+private fun MosaicNodeLayer.focusBounds(): FocusBounds = FocusBounds(
+	position = IntOffset(x, y),
+	size = IntSize(width, height),
+)
 
 private class OnPlacedHandle(
 	var element: OnPlacedModifier,

@@ -1,5 +1,5 @@
 // Klib ABI Dump
-// Targets: [linuxArm64, linuxX64, macosArm64, mingwX64]
+// Targets: [linuxArm64, linuxX64, mingwX64]
 // Rendering settings:
 // - Signature version: 2
 // - Show manifest properties: true
@@ -12,6 +12,22 @@ open annotation class com.jakewharton.mosaic.ui/LayoutScopeMarker : kotlin/Annot
 
 open annotation class com.jakewharton.mosaic.ui/MosaicComposable : kotlin/Annotation { // com.jakewharton.mosaic.ui/MosaicComposable|null[0]
     constructor <init>() // com.jakewharton.mosaic.ui/MosaicComposable.<init>|<init>(){}[0]
+}
+
+final enum class com.jakewharton.mosaic.focus/FocusState : kotlin/Enum<com.jakewharton.mosaic.focus/FocusState> { // com.jakewharton.mosaic.focus/FocusState|null[0]
+    enum entry Active // com.jakewharton.mosaic.focus/FocusState.Active|null[0]
+    enum entry ActiveParent // com.jakewharton.mosaic.focus/FocusState.ActiveParent|null[0]
+    enum entry Inactive // com.jakewharton.mosaic.focus/FocusState.Inactive|null[0]
+
+    final val entries // com.jakewharton.mosaic.focus/FocusState.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.jakewharton.mosaic.focus/FocusState> // com.jakewharton.mosaic.focus/FocusState.entries.<get-entries>|<get-entries>#static(){}[0]
+    final val hasFocus // com.jakewharton.mosaic.focus/FocusState.hasFocus|{}hasFocus[0]
+        final fun <get-hasFocus>(): kotlin/Boolean // com.jakewharton.mosaic.focus/FocusState.hasFocus.<get-hasFocus>|<get-hasFocus>(){}[0]
+    final val isFocused // com.jakewharton.mosaic.focus/FocusState.isFocused|{}isFocused[0]
+        final fun <get-isFocused>(): kotlin/Boolean // com.jakewharton.mosaic.focus/FocusState.isFocused.<get-isFocused>|<get-isFocused>(){}[0]
+
+    final fun valueOf(kotlin/String): com.jakewharton.mosaic.focus/FocusState // com.jakewharton.mosaic.focus/FocusState.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.jakewharton.mosaic.focus/FocusState> // com.jakewharton.mosaic.focus/FocusState.values|values#static(){}[0]
 }
 
 final enum class com.jakewharton.mosaic.layout/IntrinsicSize : kotlin/Enum<com.jakewharton.mosaic.layout/IntrinsicSize> { // com.jakewharton.mosaic.layout/IntrinsicSize|null[0]
@@ -253,6 +269,12 @@ abstract class com.jakewharton.mosaic.layout/Placeable { // com.jakewharton.mosa
     }
 }
 
+final class com.jakewharton.mosaic.focus/FocusRequester { // com.jakewharton.mosaic.focus/FocusRequester|null[0]
+    constructor <init>() // com.jakewharton.mosaic.focus/FocusRequester.<init>|<init>(){}[0]
+
+    final fun requestFocus(com.jakewharton.mosaic.focus/FocusDirection = ...): kotlin/Boolean // com.jakewharton.mosaic.focus/FocusRequester.requestFocus|requestFocus(com.jakewharton.mosaic.focus.FocusDirection){}[0]
+}
+
 final class com.jakewharton.mosaic.layout/KeyEvent { // com.jakewharton.mosaic.layout/KeyEvent|null[0]
     constructor <init>(kotlin/String, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.jakewharton.mosaic.layout/KeyEvent.<init>|<init>(kotlin.String;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 
@@ -412,6 +434,19 @@ final class com.jakewharton.mosaic/StaticLogger { // com.jakewharton.mosaic/Stat
     final fun plusAssign(kotlin/String) // com.jakewharton.mosaic/StaticLogger.plusAssign|plusAssign(kotlin.String){}[0]
 }
 
+final class com.jakewharton.mosaic/TerminalCursorPosition { // com.jakewharton.mosaic/TerminalCursorPosition|null[0]
+    constructor <init>(kotlin/Int, kotlin/Int) // com.jakewharton.mosaic/TerminalCursorPosition.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
+
+    final val column // com.jakewharton.mosaic/TerminalCursorPosition.column|{}column[0]
+        final fun <get-column>(): kotlin/Int // com.jakewharton.mosaic/TerminalCursorPosition.column.<get-column>|<get-column>(){}[0]
+    final val row // com.jakewharton.mosaic/TerminalCursorPosition.row|{}row[0]
+        final fun <get-row>(): kotlin/Int // com.jakewharton.mosaic/TerminalCursorPosition.row.<get-row>|<get-row>(){}[0]
+
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.jakewharton.mosaic/TerminalCursorPosition.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.jakewharton.mosaic/TerminalCursorPosition.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.jakewharton.mosaic/TerminalCursorPosition.toString|toString(){}[0]
+}
+
 final class com.jakewharton.mosaic/TerminalState { // com.jakewharton.mosaic/TerminalState|null[0]
     constructor <init>(kotlin/Boolean, com.jakewharton.mosaic.terminal/Terminal.Theme, com.jakewharton.mosaic.terminal/Terminal.Size) // com.jakewharton.mosaic/TerminalState.<init>|<init>(kotlin.Boolean;com.jakewharton.mosaic.terminal.Terminal.Theme;com.jakewharton.mosaic.terminal.Terminal.Size){}[0]
 
@@ -425,6 +460,31 @@ final class com.jakewharton.mosaic/TerminalState { // com.jakewharton.mosaic/Ter
     final fun equals(kotlin/Any?): kotlin/Boolean // com.jakewharton.mosaic/TerminalState.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // com.jakewharton.mosaic/TerminalState.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // com.jakewharton.mosaic/TerminalState.toString|toString(){}[0]
+}
+
+final value class com.jakewharton.mosaic.focus/FocusDirection { // com.jakewharton.mosaic.focus/FocusDirection|null[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.jakewharton.mosaic.focus/FocusDirection.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.jakewharton.mosaic.focus/FocusDirection.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.jakewharton.mosaic.focus/FocusDirection.toString|toString(){}[0]
+
+    final object Companion { // com.jakewharton.mosaic.focus/FocusDirection.Companion|null[0]
+        final val Down // com.jakewharton.mosaic.focus/FocusDirection.Companion.Down|{}Down[0]
+            final fun <get-Down>(): com.jakewharton.mosaic.focus/FocusDirection // com.jakewharton.mosaic.focus/FocusDirection.Companion.Down.<get-Down>|<get-Down>(){}[0]
+        final val Enter // com.jakewharton.mosaic.focus/FocusDirection.Companion.Enter|{}Enter[0]
+            final fun <get-Enter>(): com.jakewharton.mosaic.focus/FocusDirection // com.jakewharton.mosaic.focus/FocusDirection.Companion.Enter.<get-Enter>|<get-Enter>(){}[0]
+        final val Exit // com.jakewharton.mosaic.focus/FocusDirection.Companion.Exit|{}Exit[0]
+            final fun <get-Exit>(): com.jakewharton.mosaic.focus/FocusDirection // com.jakewharton.mosaic.focus/FocusDirection.Companion.Exit.<get-Exit>|<get-Exit>(){}[0]
+        final val Left // com.jakewharton.mosaic.focus/FocusDirection.Companion.Left|{}Left[0]
+            final fun <get-Left>(): com.jakewharton.mosaic.focus/FocusDirection // com.jakewharton.mosaic.focus/FocusDirection.Companion.Left.<get-Left>|<get-Left>(){}[0]
+        final val Next // com.jakewharton.mosaic.focus/FocusDirection.Companion.Next|{}Next[0]
+            final fun <get-Next>(): com.jakewharton.mosaic.focus/FocusDirection // com.jakewharton.mosaic.focus/FocusDirection.Companion.Next.<get-Next>|<get-Next>(){}[0]
+        final val Previous // com.jakewharton.mosaic.focus/FocusDirection.Companion.Previous|{}Previous[0]
+            final fun <get-Previous>(): com.jakewharton.mosaic.focus/FocusDirection // com.jakewharton.mosaic.focus/FocusDirection.Companion.Previous.<get-Previous>|<get-Previous>(){}[0]
+        final val Right // com.jakewharton.mosaic.focus/FocusDirection.Companion.Right|{}Right[0]
+            final fun <get-Right>(): com.jakewharton.mosaic.focus/FocusDirection // com.jakewharton.mosaic.focus/FocusDirection.Companion.Right.<get-Right>|<get-Right>(){}[0]
+        final val Up // com.jakewharton.mosaic.focus/FocusDirection.Companion.Up|{}Up[0]
+            final fun <get-Up>(): com.jakewharton.mosaic.focus/FocusDirection // com.jakewharton.mosaic.focus/FocusDirection.Companion.Up.<get-Up>|<get-Up>(){}[0]
+    }
 }
 
 final value class com.jakewharton.mosaic.ui.unit/Constraints { // com.jakewharton.mosaic.ui.unit/Constraints|null[0]
@@ -683,6 +743,7 @@ final const val com.jakewharton.mosaic.ui/UnspecifiedTextStyle // com.jakewharto
 final const val com.jakewharton.mosaic.ui/UnspecifiedUnderlineStyle // com.jakewharton.mosaic.ui/UnspecifiedUnderlineStyle|{}UnspecifiedUnderlineStyle[0]
     final fun <get-UnspecifiedUnderlineStyle>(): kotlin/Int // com.jakewharton.mosaic.ui/UnspecifiedUnderlineStyle.<get-UnspecifiedUnderlineStyle>|<get-UnspecifiedUnderlineStyle>(){}[0]
 
+final val com.jakewharton.mosaic.focus/com_jakewharton_mosaic_focus_FocusRequester$stableprop // com.jakewharton.mosaic.focus/com_jakewharton_mosaic_focus_FocusRequester$stableprop|#static{}com_jakewharton_mosaic_focus_FocusRequester$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop|#static{}com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop|#static{}com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop|#static{}com_jakewharton_mosaic_layout_KeyEvent$stableprop[0]
@@ -721,9 +782,16 @@ final val com.jakewharton.mosaic/LocalStaticLogger // com.jakewharton.mosaic/Loc
 final val com.jakewharton.mosaic/LocalTerminalState // com.jakewharton.mosaic/LocalTerminalState|{}LocalTerminalState[0]
     final fun <get-LocalTerminalState>(): androidx.compose.runtime/ProvidableCompositionLocal<com.jakewharton.mosaic/TerminalState> // com.jakewharton.mosaic/LocalTerminalState.<get-LocalTerminalState>|<get-LocalTerminalState>(){}[0]
 final val com.jakewharton.mosaic/com_jakewharton_mosaic_StaticLogger$stableprop // com.jakewharton.mosaic/com_jakewharton_mosaic_StaticLogger$stableprop|#static{}com_jakewharton_mosaic_StaticLogger$stableprop[0]
+final val com.jakewharton.mosaic/com_jakewharton_mosaic_TerminalCursorPosition$stableprop // com.jakewharton.mosaic/com_jakewharton_mosaic_TerminalCursorPosition$stableprop|#static{}com_jakewharton_mosaic_TerminalCursorPosition$stableprop[0]
 final val com.jakewharton.mosaic/com_jakewharton_mosaic_TerminalState$stableprop // com.jakewharton.mosaic/com_jakewharton_mosaic_TerminalState$stableprop|#static{}com_jakewharton_mosaic_TerminalState$stableprop[0]
 
 final fun (androidx.compose.runtime/Composer).com.jakewharton.mosaic.modifier/materialize(com.jakewharton.mosaic.modifier/Modifier): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.modifier/materialize|materialize@androidx.compose.runtime.Composer(com.jakewharton.mosaic.modifier.Modifier){}[0]
+final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.focus/focusCursor(kotlin/Int, kotlin/Int = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.focus/focusCursor|focusCursor@com.jakewharton.mosaic.modifier.Modifier(kotlin.Int;kotlin.Int){}[0]
+final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.focus/focusGroup(kotlin/Boolean = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.focus/focusGroup|focusGroup@com.jakewharton.mosaic.modifier.Modifier(kotlin.Boolean){}[0]
+final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.focus/focusRequester(com.jakewharton.mosaic.focus/FocusRequester): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.focus/focusRequester|focusRequester@com.jakewharton.mosaic.modifier.Modifier(com.jakewharton.mosaic.focus.FocusRequester){}[0]
+final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.focus/focusTrap(kotlin/Boolean = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.focus/focusTrap|focusTrap@com.jakewharton.mosaic.modifier.Modifier(kotlin.Boolean){}[0]
+final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.focus/focusable(kotlin/Boolean = ..., kotlin/Boolean = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.focus/focusable|focusable@com.jakewharton.mosaic.modifier.Modifier(kotlin.Boolean;kotlin.Boolean){}[0]
+final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.focus/onFocusChanged(kotlin/Function1<com.jakewharton.mosaic.focus/FocusState, kotlin/Unit>): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.focus/onFocusChanged|onFocusChanged@com.jakewharton.mosaic.modifier.Modifier(kotlin.Function1<com.jakewharton.mosaic.focus.FocusState,kotlin.Unit>){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/aspectRatio(kotlin/Float, kotlin/Boolean = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/aspectRatio|aspectRatio@com.jakewharton.mosaic.modifier.Modifier(kotlin.Float;kotlin.Boolean){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/background(com.jakewharton.mosaic.ui/Color): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/background|background@com.jakewharton.mosaic.modifier.Modifier(com.jakewharton.mosaic.ui.Color){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/defaultMinSize(kotlin/Int = ..., kotlin/Int = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/defaultMinSize|defaultMinSize@com.jakewharton.mosaic.modifier.Modifier(kotlin.Int;kotlin.Int){}[0]
@@ -775,6 +843,7 @@ final fun (com.jakewharton.mosaic.ui.unit/Constraints).com.jakewharton.mosaic.ui
 final fun (com.jakewharton.mosaic.ui.unit/Constraints).com.jakewharton.mosaic.ui.unit/constrainWidth(kotlin/Int): kotlin/Int // com.jakewharton.mosaic.ui.unit/constrainWidth|constrainWidth@com.jakewharton.mosaic.ui.unit.Constraints(kotlin.Int){}[0]
 final fun (com.jakewharton.mosaic.ui.unit/Constraints).com.jakewharton.mosaic.ui.unit/isSatisfiedBy(com.jakewharton.mosaic.ui.unit/IntSize): kotlin/Boolean // com.jakewharton.mosaic.ui.unit/isSatisfiedBy|isSatisfiedBy@com.jakewharton.mosaic.ui.unit.Constraints(com.jakewharton.mosaic.ui.unit.IntSize){}[0]
 final fun (com.jakewharton.mosaic.ui.unit/Constraints).com.jakewharton.mosaic.ui.unit/offset(kotlin/Int = ..., kotlin/Int = ...): com.jakewharton.mosaic.ui.unit/Constraints // com.jakewharton.mosaic.ui.unit/offset|offset@com.jakewharton.mosaic.ui.unit.Constraints(kotlin.Int;kotlin.Int){}[0]
+final fun com.jakewharton.mosaic.focus/com_jakewharton_mosaic_focus_FocusRequester$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.focus/com_jakewharton_mosaic_focus_FocusRequester$stableprop_getter|com_jakewharton_mosaic_focus_FocusRequester$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop_getter|com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop_getter|com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop_getter|com_jakewharton_mosaic_layout_KeyEvent$stableprop_getter(){}[0]
@@ -812,7 +881,9 @@ final fun com.jakewharton.mosaic.ui/com_jakewharton_mosaic_ui_BiasAlignment_Hori
 final fun com.jakewharton.mosaic.ui/com_jakewharton_mosaic_ui_BiasAlignment_Vertical$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.ui/com_jakewharton_mosaic_ui_BiasAlignment_Vertical$stableprop_getter|com_jakewharton_mosaic_ui_BiasAlignment_Vertical$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic/Mosaic(kotlin.coroutines/CoroutineContext, kotlin/Function1<com.jakewharton.mosaic/Mosaic, kotlin/Unit>, com.jakewharton.mosaic.terminal/Terminal): com.jakewharton.mosaic/Mosaic // com.jakewharton.mosaic/Mosaic|Mosaic(kotlin.coroutines.CoroutineContext;kotlin.Function1<com.jakewharton.mosaic.Mosaic,kotlin.Unit>;com.jakewharton.mosaic.terminal.Terminal){}[0]
 final fun com.jakewharton.mosaic/StaticEffect(kotlin/Function2<androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>, androidx.compose.runtime/Composer?, kotlin/Int) // com.jakewharton.mosaic/StaticEffect|StaticEffect(kotlin.Function2<androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>;androidx.compose.runtime.Composer?;kotlin.Int){}[0]
+final fun com.jakewharton.mosaic/TerminalCursor(com.jakewharton.mosaic/TerminalCursorPosition?, androidx.compose.runtime/Composer?, kotlin/Int) // com.jakewharton.mosaic/TerminalCursor|TerminalCursor(com.jakewharton.mosaic.TerminalCursorPosition?;androidx.compose.runtime.Composer?;kotlin.Int){}[0]
 final fun com.jakewharton.mosaic/com_jakewharton_mosaic_StaticLogger$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic/com_jakewharton_mosaic_StaticLogger$stableprop_getter|com_jakewharton_mosaic_StaticLogger$stableprop_getter(){}[0]
+final fun com.jakewharton.mosaic/com_jakewharton_mosaic_TerminalCursorPosition$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic/com_jakewharton_mosaic_TerminalCursorPosition$stableprop_getter|com_jakewharton_mosaic_TerminalCursorPosition$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic/com_jakewharton_mosaic_TerminalState$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic/com_jakewharton_mosaic_TerminalState$stableprop_getter|com_jakewharton_mosaic_TerminalState$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic/runMosaicBlocking(com.jakewharton.mosaic/NonInteractivePolicy = ..., com.jakewharton.mosaic.terminal/MouseTracking, kotlin/Function2<androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>): kotlin/Boolean // com.jakewharton.mosaic/runMosaicBlocking|runMosaicBlocking(com.jakewharton.mosaic.NonInteractivePolicy;com.jakewharton.mosaic.terminal.MouseTracking;kotlin.Function2<androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>){}[0]
 final fun com.jakewharton.mosaic/runMosaicBlocking(com.jakewharton.mosaic/NonInteractivePolicy = ..., kotlin/Function2<androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>): kotlin/Boolean // com.jakewharton.mosaic/runMosaicBlocking|runMosaicBlocking(com.jakewharton.mosaic.NonInteractivePolicy;kotlin.Function2<androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>){}[0]

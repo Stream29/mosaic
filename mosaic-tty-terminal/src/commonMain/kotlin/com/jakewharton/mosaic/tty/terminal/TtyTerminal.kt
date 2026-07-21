@@ -109,9 +109,10 @@ public suspend fun Tty.asTerminalIn(
 
 	setCallback(EventParserTtyCallback(focused, size, events, emitDebugEvents))
 
-	// Each of these will become true when their respective feature is recognized by the terminal
-	// and was not already configured to our desired setting. Revert each toggled setting on exit.
-	var toggleCursor = false
+	// Cursor visibility records its initial state because rendering may change it in either direction.
+	/** `null` means that the terminal did not report a mutable initial cursor state. */
+	var initialCursorVisible: Boolean? = null
+	// Each toggle becomes true when its feature is recognized and changed for this session.
 	var toggleFocus = false
 	var kittyKeyboardPushed = false
 	var modifyOtherKeysEnabled = false
@@ -134,7 +135,11 @@ public suspend fun Tty.asTerminalIn(
 				if (toggleMouseSgrCoordinates) write(mouseSgrCoordinatesDisable)
 				if (toggleMouseEvents) mouseEventMode?.let { write("$CSI?${it}l") }
 				if (toggleFocus) write(focusDisable)
-				if (toggleCursor) write(cursorEnable)
+				when (initialCursorVisible) {
+					true -> write(cursorEnable)
+					false -> write(cursorDisable)
+					null -> Unit
+				}
 				reset()
 			},
 			block = {
@@ -218,8 +223,12 @@ public suspend fun Tty.asTerminalIn(
 					when (event.mode) {
 						cursorMode -> {
 							cursorVisibility = event.setting.canBeChanged
-							if (event.setting == Setting.Set) {
-								toggleCursor = true
+							initialCursorVisible = when (event.setting) {
+								Setting.Set -> true
+								Setting.Reset -> false
+								else -> null
+							}
+							if (initialCursorVisible == true) {
 								write(cursorDisable)
 							}
 						}

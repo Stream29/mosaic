@@ -51,8 +51,8 @@ class TtyTerminalCursorTest {
 			assertThat(setup).doesNotContain("$CSI?25l")
 		}
 
-		// Cursor is left hidden.
-		assertThat(teardown).doesNotContain("$CSI?25h")
+		// Runtime rendering may have shown the cursor, so its hidden state is restored.
+		assertThat(teardown).contains("$CSI?25l")
 	}
 
 	@Test fun replyPermanentlySet() = terminalTest {

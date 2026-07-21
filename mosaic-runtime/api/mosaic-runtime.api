@@ -45,6 +45,20 @@ public final class com/jakewharton/mosaic/StaticLogger {
 	public final fun plusAssign (Ljava/lang/String;)V
 }
 
+public final class com/jakewharton/mosaic/TerminalCursorKt {
+	public static final fun TerminalCursor (Lcom/jakewharton/mosaic/TerminalCursorPosition;Landroidx/compose/runtime/Composer;I)V
+}
+
+public final class com/jakewharton/mosaic/TerminalCursorPosition {
+	public static final field $stable I
+	public fun <init> (II)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getColumn ()I
+	public final fun getRow ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/jakewharton/mosaic/TerminalState {
 	public static final field $stable I
 	public fun <init> (ZLcom/jakewharton/mosaic/terminal/Terminal$Theme;Lcom/jakewharton/mosaic/terminal/Terminal$Size;)V
@@ -65,6 +79,61 @@ public abstract interface class com/jakewharton/mosaic/TextCanvas {
 	public abstract fun getHeight ()I
 	public abstract fun getWidth ()I
 	public abstract fun render (Lcom/jakewharton/mosaic/terminal/AnsiLevel;Z)Ljava/lang/String;
+}
+
+public final class com/jakewharton/mosaic/focus/FocusDirection {
+	public static final field Companion Lcom/jakewharton/mosaic/focus/FocusDirection$Companion;
+	public static final synthetic fun box-impl (I)Lcom/jakewharton/mosaic/focus/FocusDirection;
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (ILjava/lang/Object;)Z
+	public static final fun equals-impl0 (II)Z
+	public fun hashCode ()I
+	public static fun hashCode-impl (I)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (I)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()I
+}
+
+public final class com/jakewharton/mosaic/focus/FocusDirection$Companion {
+	public final fun getDown-s_gprhM ()I
+	public final fun getEnter-s_gprhM ()I
+	public final fun getExit-s_gprhM ()I
+	public final fun getLeft-s_gprhM ()I
+	public final fun getNext-s_gprhM ()I
+	public final fun getPrevious-s_gprhM ()I
+	public final fun getRight-s_gprhM ()I
+	public final fun getUp-s_gprhM ()I
+}
+
+public final class com/jakewharton/mosaic/focus/FocusKt {
+	public static final fun focusCursor (Lcom/jakewharton/mosaic/modifier/Modifier;II)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static synthetic fun focusCursor$default (Lcom/jakewharton/mosaic/modifier/Modifier;IIILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun focusGroup (Lcom/jakewharton/mosaic/modifier/Modifier;Z)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static synthetic fun focusGroup$default (Lcom/jakewharton/mosaic/modifier/Modifier;ZILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun focusRequester (Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/focus/FocusRequester;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun focusTrap (Lcom/jakewharton/mosaic/modifier/Modifier;Z)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static synthetic fun focusTrap$default (Lcom/jakewharton/mosaic/modifier/Modifier;ZILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun focusable (Lcom/jakewharton/mosaic/modifier/Modifier;ZZ)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static synthetic fun focusable$default (Lcom/jakewharton/mosaic/modifier/Modifier;ZZILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun onFocusChanged (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
+}
+
+public final class com/jakewharton/mosaic/focus/FocusRequester {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun requestFocus-kMQ9Pt8 (I)Z
+	public static synthetic fun requestFocus-kMQ9Pt8$default (Lcom/jakewharton/mosaic/focus/FocusRequester;IILjava/lang/Object;)Z
+}
+
+public final class com/jakewharton/mosaic/focus/FocusState : java/lang/Enum {
+	public static final field Active Lcom/jakewharton/mosaic/focus/FocusState;
+	public static final field ActiveParent Lcom/jakewharton/mosaic/focus/FocusState;
+	public static final field Inactive Lcom/jakewharton/mosaic/focus/FocusState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getHasFocus ()Z
+	public final fun isFocused ()Z
+	public static fun valueOf (Ljava/lang/String;)Lcom/jakewharton/mosaic/focus/FocusState;
+	public static fun values ()[Lcom/jakewharton/mosaic/focus/FocusState;
 }
 
 public final class com/jakewharton/mosaic/layout/AspectRatioKt {

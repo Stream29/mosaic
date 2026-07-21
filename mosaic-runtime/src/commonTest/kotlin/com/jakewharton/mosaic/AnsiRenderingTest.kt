@@ -1,5 +1,8 @@
 package com.jakewharton.mosaic
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import com.jakewharton.mosaic.layout.background
@@ -32,6 +35,62 @@ class AnsiRenderingTest {
 				|World!
 				|
 				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+		}
+	}
+
+	@Test fun terminalCursorTracksRequestedSurfacePosition() = runTest {
+		runMosaicTest(RenderingSnapshots(rendering)) {
+			var cursorPosition by mutableStateOf(TerminalCursorPosition(row = 1, column = 3))
+			setContent {
+				TerminalCursor(cursorPosition)
+				Column {
+					Text("Hello")
+					Text("World!")
+				}
+			}
+
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|Hello
+				|World!
+				|${CSI}1A${CSI}3C$cursorVisibilityEnable
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+
+			cursorPosition = TerminalCursorPosition(row = 0, column = 1)
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|${CSI}1F${clearLine}Hello
+				|${clearLine}World!
+				|${CSI}2A${CSI}1C
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+		}
+	}
+
+	@Test fun terminalCursorIsHiddenWhenNoLongerRequested() = runTest {
+		runMosaicTest(RenderingSnapshots(rendering)) {
+			setContent {
+				TerminalCursor(TerminalCursorPosition(row = 0, column = 1))
+				Text("Hello")
+			}
+
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|Hello
+				|${CSI}1A${CSI}1C$cursorVisibilityEnable
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+
+			setContent {
+				TerminalCursor(null)
+				Text("Hello")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				("\r${clearLine}Hello\n$cursorVisibilityDisable")
+					.wrapWithAnsiSynchronizedUpdate()
+					.replaceLineEndingsWithCRLF(),
 			)
 		}
 	}

@@ -74,6 +74,8 @@ internal class AnsiRendering(
 ) : Rendering {
 	private val stringBuilder = StringBuilder(100)
 	private var lastHeight = 0
+	private var lastCursorRow = 0
+	private var cursorVisible = false
 
 	override fun render(mosaic: Mosaic): CharSequence {
 		return stringBuilder.apply {
@@ -86,9 +88,13 @@ internal class AnsiRendering(
 			var staleLines = lastHeight
 			if (staleLines > 0) {
 				// Move to start of previous output.
-				append(CSI)
-				append(staleLines)
-				append('F')
+				if (lastCursorRow > 0) {
+					append(CSI)
+					append(lastCursorRow)
+					append('F')
+				} else {
+					append('\r')
+				}
 			}
 
 			fun appendSurface(canvas: TextCanvas) {
@@ -122,6 +128,31 @@ internal class AnsiRendering(
 			// If the new output contains fewer lines than the last output, clear those old lines.
 			if (staleLines > 0) {
 				append(clearDisplay)
+			}
+
+			val cursorPosition = mosaic.cursorPosition
+			if (cursorPosition != null && surface.width > 0 && surface.height > 0) {
+				val row = cursorPosition.row.coerceIn(0, surface.height - 1)
+				val column = cursorPosition.column.coerceIn(0, surface.width - 1)
+				append(CSI)
+				append(surface.height - row)
+				append('A')
+				if (column > 0) {
+					append(CSI)
+					append(column)
+					append('C')
+				}
+				if (capabilities.cursorVisibility && !cursorVisible) {
+					append(cursorVisibilityEnable)
+					cursorVisible = true
+				}
+				lastCursorRow = row
+			} else {
+				if (capabilities.cursorVisibility && cursorVisible) {
+					append(cursorVisibilityDisable)
+					cursorVisible = false
+				}
+				lastCursorRow = surface.height
 			}
 
 			if (capabilities.synchronizedOutput) {

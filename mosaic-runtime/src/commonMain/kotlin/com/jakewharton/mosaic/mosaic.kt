@@ -16,6 +16,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.jakewharton.mosaic.NonInteractivePolicy.Exit
+import com.jakewharton.mosaic.focus.FocusOwner
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.MosaicNode
 import com.jakewharton.mosaic.terminal.KeyboardEvent
@@ -137,6 +138,10 @@ public fun Mosaic(
 	return MosaicComposition(coroutineContext, onDraw, terminal)
 }
 
+/** @return `null` when [this] has no physical terminal cursor position to render. */
+internal val Mosaic.cursorPosition: TerminalCursorPosition?
+	get() = (this as? MosaicComposition)?.cursorPosition
+
 internal class MosaicComposition(
 	coroutineContext: CoroutineContext,
 	private val onDraw: (Mosaic) -> Unit,
@@ -159,6 +164,16 @@ internal class MosaicComposition(
 
 	private val staticLogs = Channel<Any>(UNLIMITED)
 	private val staticLogger = StaticLogger(staticLogs) { needDraw = true }
+
+	/** `null` means that the terminal cursor must be hidden. */
+	private var terminalCursorPosition: TerminalCursorPosition? = null
+	private val terminalCursorController = TerminalCursorController { position ->
+		if (terminalCursorPosition != position) {
+			terminalCursorPosition = position
+			needDraw = true
+		}
+	}
+	private val focusOwner = FocusOwner(terminalCursorController::updateFocus)
 
 	override val lifecycle = LifecycleRegistry.createUnsafe(this)
 
@@ -217,6 +232,7 @@ internal class MosaicComposition(
 		readStatesOnLayout.clear()
 		Snapshot.observe(readObserver = readStatesOnLayoutObserver) {
 			rootNode.measureAndPlace()
+			focusOwner.reconcile(rootNode.collectFocusTree())
 		}
 
 		performDraw()
@@ -233,6 +249,10 @@ internal class MosaicComposition(
 			rootNode.draw()
 		}
 	}
+
+	/** `null` means that the terminal cursor must be hidden. */
+	internal val cursorPosition: TerminalCursorPosition?
+		get() = terminalCursorPosition
 
 	override fun static(): String? {
 		var static = staticLogs.tryReceive().getOrNull()
@@ -310,7 +330,11 @@ internal class MosaicComposition(
 						val event = terminal.events.tryReceive().getOrNull() ?: break
 						if (event !is KeyboardEvent) continue
 						val keyEvent = event.toKeyEventOrNull() ?: continue
-						val keyHandled = rootNode.sendKeyEvent(keyEvent)
+						val keyHandled = if (focusOwner.ownsKeyDispatch) {
+							focusOwner.dispatchKeyEvent(keyEvent)
+						} else {
+							rootNode.sendKeyEvent(keyEvent)
+						}
 						if (!keyHandled && keyEvent == ctrlC) {
 							job.cancel()
 							return@withFrameNanos
@@ -334,6 +358,7 @@ internal class MosaicComposition(
 			CompositionLocalProvider(
 				LocalTerminalState provides terminalState.value,
 				LocalStaticLogger provides staticLogger,
+				LocalTerminalCursorController provides terminalCursorController,
 				LocalLifecycleOwner provides this,
 				content = content,
 			)
@@ -359,12 +384,14 @@ internal class MosaicComposition(
 			recomposer.join()
 		} finally {
 			applyObserverHandle.dispose() // if canceled before dispose in the try block
+			focusOwner.clear()
 			job.cancel()
 		}
 	}
 
 	override fun cancel() {
 		applyObserverHandle.dispose()
+		focusOwner.clear()
 		recomposer.cancel()
 		job.cancel()
 	}
