@@ -12,13 +12,16 @@ import assertk.assertions.isTrue
 import com.jakewharton.mosaic.TerminalCursor
 import com.jakewharton.mosaic.TerminalCursorPosition
 import com.jakewharton.mosaic.cursorPosition
+import com.jakewharton.mosaic.layout.fillMaxWidth
 import com.jakewharton.mosaic.layout.offset
 import com.jakewharton.mosaic.layout.onKeyEvent
 import com.jakewharton.mosaic.layout.onPreviewKeyEvent
+import com.jakewharton.mosaic.layout.width
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.modifier.composed
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.ModifierShift
+import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.testing.MosaicSnapshots
 import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.ui.Box
@@ -132,6 +135,130 @@ class FocusTest {
 			sendKeyEvent(KeyboardEvent('x'.code))
 			awaitSnapshot()
 			assertThat(events).isEqualTo(listOf("preview", "target", "bubble"))
+		}
+	}
+
+	@Test fun focusedComponentCanConsumeDirectionalNavigation() = runTest {
+		var focused by mutableStateOf("")
+		var directionEvents by mutableIntStateOf(0)
+
+		runMosaicTest {
+			setContentAndSnapshot {
+				Row {
+					FocusText(
+						label = "first:$directionEvents",
+						modifier = Modifier.onKeyEvent { event ->
+							if (event.key != "ArrowRight") return@onKeyEvent false
+							directionEvents++
+							true
+						},
+						onFocus = { focused = "first" },
+					)
+					FocusText("second", onFocus = { focused = "second" })
+				}
+			}
+			assertThat(focused).isEqualTo("first")
+
+			sendKeyEvent(KeyboardEvent(KeyboardEvent.Right))
+			awaitSnapshot()
+			assertThat(focused).isEqualTo("first")
+			assertThat(directionEvents).isEqualTo(1)
+
+			sendKeyEvent(KeyboardEvent(9))
+			awaitSnapshot()
+			assertThat(focused).isEqualTo("second")
+		}
+	}
+
+	@Test fun leftPointerPressFocusesTheHitTarget() = runTest {
+		var focused by mutableStateOf("")
+
+		runMosaicTest {
+			setContentAndSnapshot {
+				Row {
+					FocusText("first", onFocus = { focused = "first" })
+					FocusText("second", onFocus = { focused = "second" })
+				}
+			}
+			assertThat(focused).isEqualTo("first")
+
+			sendMouseEvent(MouseEvent(6, 0, MouseEvent.Type.Press, MouseEvent.Button.Left))
+			awaitSnapshot()
+			assertThat(focused).isEqualTo("second")
+		}
+	}
+
+	@Test fun pointerFocusUsesLaidOutBounds() = runTest {
+		var focused by mutableStateOf("")
+
+		runMosaicTest {
+			setContentAndSnapshot {
+				Column(Modifier.width(30)) {
+					Text(
+						value = "first",
+						modifier = Modifier
+							.onFocusChanged { state ->
+								if (state.isFocused) focused = "first"
+							}
+							.focusable()
+							.fillMaxWidth(),
+					)
+					FocusText("second", onFocus = { focused = "second" })
+				}
+			}
+			assertThat(focused).isEqualTo("first")
+
+			sendKeyEvent(KeyboardEvent(9))
+			awaitSnapshot()
+			assertThat(focused).isEqualTo("second")
+
+			sendMouseEvent(MouseEvent(20, 0, MouseEvent.Type.Press, MouseEvent.Button.Left))
+			awaitSnapshot()
+			assertThat(focused).isEqualTo("first")
+		}
+	}
+
+	@Test fun pointerFocusSelectsTheTopmostOverlappingTarget() = runTest {
+		var focused by mutableStateOf("")
+
+		runMosaicTest {
+			setContentAndSnapshot {
+				Column {
+					Box {
+						FocusText("lower", onFocus = { focused = "lower" })
+						FocusText("upper", onFocus = { focused = "upper" })
+					}
+					Text(focused)
+				}
+			}
+			assertThat(focused).isEqualTo("lower")
+
+			sendMouseEvent(MouseEvent(1, 0, MouseEvent.Type.Press, MouseEvent.Button.Left))
+			awaitSnapshot()
+			assertThat(focused).isEqualTo("upper")
+		}
+	}
+
+	@Test fun pointerFocusCannotEscapeAnActiveTrap() = runTest {
+		var focused by mutableStateOf("")
+		var frame by mutableIntStateOf(0)
+
+		runMosaicTest {
+			setContentAndSnapshot {
+				Column {
+					FocusText("outside", onFocus = { focused = "outside" })
+					Column(Modifier.focusTrap()) {
+						FocusText("inside", onFocus = { focused = "inside" })
+					}
+					Text(frame.toString())
+				}
+			}
+			assertThat(focused).isEqualTo("inside")
+
+			sendMouseEvent(MouseEvent(1, 0, MouseEvent.Type.Press, MouseEvent.Button.Left))
+			frame++
+			awaitSnapshot()
+			assertThat(focused).isEqualTo("inside")
 		}
 	}
 

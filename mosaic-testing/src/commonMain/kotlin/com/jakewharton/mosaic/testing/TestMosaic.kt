@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import com.jakewharton.mosaic.Mosaic
 import com.jakewharton.mosaic.terminal.AnsiLevel
 import com.jakewharton.mosaic.terminal.KeyboardEvent
+import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.terminal.Terminal
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
@@ -48,6 +49,7 @@ public interface TestMosaic<T> : Mosaic {
 	public suspend fun awaitSnapshot(duration: Duration = 1.seconds): T
 
 	public fun sendKeyEvent(keyEvent: KeyboardEvent)
+	public fun sendMouseEvent(mouseEvent: MouseEvent)
 	public val state: TestTerminal.State
 }
 
@@ -103,6 +105,10 @@ private class RealTestMosaic<T>(
 
 	override fun sendKeyEvent(keyEvent: KeyboardEvent) {
 		testTerminal.events.trySend(keyEvent)
+	}
+
+	override fun sendMouseEvent(mouseEvent: MouseEvent) {
+		testTerminal.events.trySend(mouseEvent)
 	}
 
 	override fun draw() = mosaic.draw()

@@ -20,9 +20,11 @@ import com.jakewharton.mosaic.focus.FocusOwner
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.MosaicNode
 import com.jakewharton.mosaic.terminal.KeyboardEvent
+import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.terminal.MouseTracking
 import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.ui.BoxMeasurePolicy
+import com.jakewharton.mosaic.ui.unit.IntOffset
 import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -325,19 +327,33 @@ internal class MosaicComposition(
 
 			do {
 				externalClock.withFrameNanos { nanos ->
-					// Drain any pending key events before triggering the frame.
+					// Drain pending input events before triggering the frame.
 					while (true) {
 						val event = terminal.events.tryReceive().getOrNull() ?: break
-						if (event !is KeyboardEvent) continue
-						val keyEvent = event.toKeyEventOrNull() ?: continue
-						val keyHandled = if (focusOwner.ownsKeyDispatch) {
-							focusOwner.dispatchKeyEvent(keyEvent)
-						} else {
-							rootNode.sendKeyEvent(keyEvent)
-						}
-						if (!keyHandled && keyEvent == ctrlC) {
-							job.cancel()
-							return@withFrameNanos
+						when (event) {
+							is KeyboardEvent -> {
+								val keyEvent = event.toKeyEventOrNull() ?: continue
+								val keyHandled = if (focusOwner.ownsKeyDispatch) {
+									focusOwner.dispatchKeyEvent(keyEvent)
+								} else {
+									rootNode.sendKeyEvent(keyEvent)
+								}
+								if (!keyHandled && keyEvent == ctrlC) {
+									job.cancel()
+									return@withFrameNanos
+								}
+							}
+
+							is MouseEvent -> {
+								if (
+									event.type == MouseEvent.Type.Press &&
+									event.button == MouseEvent.Button.Left
+								) {
+									focusOwner.requestFocusAt(IntOffset(event.x, event.y))
+								}
+							}
+
+							else -> Unit
 						}
 					}
 

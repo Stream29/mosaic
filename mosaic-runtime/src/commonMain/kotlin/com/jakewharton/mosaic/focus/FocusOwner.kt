@@ -113,6 +113,14 @@ internal class FocusOwner(
 		return select(target)
 	}
 
+	fun requestFocusAt(position: IntOffset): Boolean {
+		val target = tree.targets
+			.asReversed()
+			.firstOrNull { target -> isEligible(target) && target.bounds.contains(position) }
+			?: return false
+		return select(target.handle)
+	}
+
 	fun dispatchKeyEvent(event: KeyEvent): Boolean {
 		val keyPath = focusedTarget
 			?.let(tree::target)
@@ -505,6 +513,8 @@ internal data class FocusBounds(
 	private val bottom: Int get() = position.y + size.height
 
 	fun hasArea(): Boolean = size.width > 0 && size.height > 0
+
+	fun contains(point: IntOffset): Boolean = point.x in left until right && point.y in top until bottom
 
 	fun isBetterCandidateThan(
 		currentCandidate: FocusBounds,
