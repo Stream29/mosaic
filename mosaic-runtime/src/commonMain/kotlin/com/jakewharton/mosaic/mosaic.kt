@@ -418,14 +418,15 @@ internal class MosaicComposition(
 }
 
 internal class MosaicNodeApplier(
+	root: MosaicNode,
 	private val onChanges: () -> Unit = {},
 ) : AbstractApplier<MosaicNode>(
-	root = MosaicNode(
-		measurePolicy = BoxMeasurePolicy(),
-		debugPolicy = { children.joinToString(separator = "\n") },
-		isStatic = false,
-	),
+	root = root,
 ) {
+	init {
+		check(root.isAttached) { "MosaicNodeApplier root must be attached" }
+	}
+
 	override fun onBeginChanges() {
 		super.onBeginChanges()
 		// We invoke this here rather than in the end change callback to try and ensure
@@ -438,19 +439,32 @@ internal class MosaicNodeApplier(
 	}
 
 	override fun insertBottomUp(index: Int, instance: MosaicNode) {
-		current.children.add(index, instance)
+		current.insertAt(index, instance)
 	}
 
 	override fun remove(index: Int, count: Int) {
-		current.children.remove(index, count)
+		current.removeAt(index, count)
 	}
 
 	override fun move(from: Int, to: Int, count: Int) {
-		current.children.move(from, to, count)
+		current.move(from, to, count)
 	}
 
 	override fun onClear() {
+		root.removeAll()
 	}
+}
+
+internal fun MosaicNodeApplier(
+	onChanges: () -> Unit = {},
+): MosaicNodeApplier {
+	val root = MosaicNode(
+		measurePolicy = BoxMeasurePolicy(),
+		debugPolicy = { children.joinToString(separator = "\n") },
+		isStatic = false,
+	)
+	root.attachRoot(onChanges)
+	return MosaicNodeApplier(root, onChanges)
 }
 
 @OptIn(ExperimentalAtomicApi::class)

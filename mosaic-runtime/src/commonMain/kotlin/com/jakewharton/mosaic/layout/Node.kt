@@ -1,5 +1,6 @@
 package com.jakewharton.mosaic.layout
 
+import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import com.jakewharton.mosaic.TerminalCursorPosition
 import com.jakewharton.mosaic.TextCanvas
 import com.jakewharton.mosaic.TextSurface
@@ -17,6 +18,7 @@ import com.jakewharton.mosaic.focus.FocusTree
 import com.jakewharton.mosaic.focus.FocusTreeCollector
 import com.jakewharton.mosaic.layout.Placeable.PlacementScope
 import com.jakewharton.mosaic.modifier.Modifier
+import com.jakewharton.mosaic.ui.SubcomposeLayoutNodeState
 import com.jakewharton.mosaic.ui.unit.Constraints
 import com.jakewharton.mosaic.ui.unit.IntOffset
 import com.jakewharton.mosaic.ui.unit.IntSize
@@ -105,12 +107,57 @@ internal object NotMeasured : MeasureResult {
 	override fun placeChildren() = throw UnsupportedOperationException("Not measured")
 }
 
+private fun interface MosaicNodeOwner {
+	fun onTreeChange()
+}
+
+/**
+ * A node in the Mosaic layout tree.
+ *
+ * @property isVirtual Whether this node is a transparent structural container rather than a
+ * measurable and renderable layout node. Virtual nodes hold the content of subcomposition slots;
+ * their active children participate in rendering and input traversal as children of the nearest
+ * non-virtual ancestor. `false` is the default because ordinary layout nodes are the primary node
+ * type.
+ * @property isDeactivated Whether this node is retained for later reuse but currently excluded
+ * from measurement, intrinsic measurement, rendering, focus, pointer, and keyboard traversal.
+ * Compose node lifecycle callbacks maintain this state for ordinary nodes. Subcomposition slot
+ * management changes it explicitly for virtual slot roots.
+ * @property foldedChildren Physical children managed by the applier. This list retains virtual and
+ * deactivated nodes so subcomposition state can manage their lifecycle.
+ * @property children Active logical children. Virtual nodes are replaced recursively by their
+ * children.
+ * @property owner `null` means this node is not attached to a Mosaic node tree.
+ * @property subcompositionsState `null` means this node has never been configured as a
+ * [com.jakewharton.mosaic.ui.SubcomposeLayout]. Once created, the state remains associated with
+ * this node across reuse.
+ */
 internal class MosaicNode(
 	var measurePolicy: MeasurePolicy,
 	var debugPolicy: DebugPolicy,
 	val isStatic: Boolean,
-) : Measurable {
-	val children = ArrayList<MosaicNode>()
+	val isVirtual: Boolean = false,
+) : Measurable,
+	ComposeNodeLifecycleCallback {
+	private val mutableFoldedChildren = ArrayList<MosaicNode>()
+	internal val foldedChildren: List<MosaicNode>
+		get() = mutableFoldedChildren
+	val children: List<MosaicNode>
+		get() {
+			if (mutableFoldedChildren.none { child -> child.isVirtual || child.isDeactivated }) {
+				return mutableFoldedChildren
+			}
+			return mutableFoldedChildren.asSequence()
+				.filterNot { child -> child.isDeactivated }
+				.flatMap { child ->
+					if (child.isVirtual) child.children.asSequence() else sequenceOf(child)
+				}
+				.toList()
+		}
+	internal var isDeactivated = false
+		private set
+	private var owner: MosaicNodeOwner? = null
+	private var subcompositionsState: SubcomposeLayoutNodeState? = null
 
 	private val bottomLayer: MosaicNodeLayer = BottomLayer(this)
 	private val focusTargets = mutableListOf<FocusTargetHandle>()
@@ -128,6 +175,104 @@ internal class MosaicNode(
 
 	var testTag: String? = null
 		private set
+
+	internal val isAttached: Boolean
+		get() = owner != null
+
+	internal fun attachRoot(onTreeChange: () -> Unit) {
+		attach(MosaicNodeOwner(onTreeChange))
+	}
+
+	private fun attach(owner: MosaicNodeOwner) {
+		check(!isAttached) {
+			"Mosaic node is already attached"
+		}
+		this.owner = owner
+		for (child in mutableFoldedChildren) {
+			child.attach(owner)
+		}
+	}
+
+	internal fun requestRelayout() {
+		owner?.onTreeChange()
+	}
+
+	internal fun insertAt(index: Int, instance: MosaicNode) {
+		check(!instance.isAttached) { "Cannot insert an attached Mosaic node" }
+		mutableFoldedChildren.add(index, instance)
+		owner?.let(instance::attach)
+	}
+
+	internal fun removeAt(index: Int, count: Int) {
+		require(count >= 0) { "count ($count) must be non-negative" }
+		for (childIndex in index + count - 1 downTo index) {
+			val child = mutableFoldedChildren[childIndex]
+			child.detachFromTree()
+			mutableFoldedChildren.removeAt(childIndex)
+		}
+	}
+
+	internal fun removeAll() {
+		removeAt(0, mutableFoldedChildren.size)
+	}
+
+	internal fun move(from: Int, to: Int, count: Int) {
+		if (count == 0 || from == to) return
+		val movedChildren = mutableFoldedChildren.subList(from, from + count).toList()
+		mutableFoldedChildren.subList(from, from + count).clear()
+		mutableFoldedChildren.addAll(if (to > from) to - count else to, movedChildren)
+	}
+
+	internal fun activateVirtualNode() {
+		check(isVirtual) { "Only virtual nodes can be activated explicitly" }
+		isDeactivated = false
+	}
+
+	internal fun deactivateVirtualNode() {
+		check(isVirtual) { "Only virtual nodes can be deactivated explicitly" }
+		isDeactivated = true
+	}
+
+	internal fun getOrCreateSubcompositions(
+		maxSlotsToRetainForReuse: Int,
+	): SubcomposeLayoutNodeState {
+		val existing = subcompositionsState
+		if (existing != null) {
+			existing.updateMaxSlotsToRetainForReuse(maxSlotsToRetainForReuse)
+			return existing
+		}
+		return SubcomposeLayoutNodeState(this, maxSlotsToRetainForReuse).also {
+			subcompositionsState = it
+		}
+	}
+
+	internal fun requireSubcompositions(): SubcomposeLayoutNodeState {
+		return checkNotNull(subcompositionsState) {
+			"Mosaic node is not configured as a SubcomposeLayout"
+		}
+	}
+
+	private fun detachFromTree() {
+		subcompositionsState?.onRelease()
+		for (child in mutableFoldedChildren.toList().asReversed()) {
+			child.detachFromTree()
+		}
+		owner = null
+	}
+
+	override fun onReuse() {
+		subcompositionsState?.onReuse()
+		isDeactivated = false
+	}
+
+	override fun onDeactivate() {
+		subcompositionsState?.onDeactivate()
+		isDeactivated = true
+	}
+
+	override fun onRelease() {
+		subcompositionsState?.onRelease()
+	}
 
 	fun setModifier(modifier: Modifier) {
 		var focusTargetIndex = 0

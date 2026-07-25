@@ -1,6 +1,7 @@
 package com.jakewharton.mosaic
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -21,6 +22,7 @@ import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.testing.TestTerminal
 import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.ui.Box
+import com.jakewharton.mosaic.ui.Column
 import com.jakewharton.mosaic.ui.Filler
 import com.jakewharton.mosaic.ui.Spacer
 import com.jakewharton.mosaic.ui.Text
@@ -137,6 +139,27 @@ class MosaicTest {
 
 			state.focused.value = false
 			assertThat(awaitSnapshot()).isEqualTo("false STARTED")
+		}
+	}
+
+	@Test fun deactivatedContentDoesNotParticipateInNodeTree() = runTest {
+		val active = mutableStateOf(true)
+
+		runMosaicTest {
+			setContent {
+				Column {
+					ReusableContentHost(active = active.value) {
+						Text("active")
+					}
+					Text("tail")
+				}
+			}
+
+			assertThat(awaitSnapshot()).isEqualTo("active\ntail")
+			active.value = false
+			assertThat(awaitSnapshot()).isEqualTo("tail")
+			active.value = true
+			assertThat(awaitSnapshot()).isEqualTo("active\ntail")
 		}
 	}
 }

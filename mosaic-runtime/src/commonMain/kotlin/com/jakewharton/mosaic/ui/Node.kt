@@ -2,7 +2,7 @@ package com.jakewharton.mosaic.ui
 
 import androidx.compose.runtime.Applier
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ComposeNode
+import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.currentComposer
 import com.jakewharton.mosaic.layout.DebugPolicy
 import com.jakewharton.mosaic.layout.Measurable
@@ -27,7 +27,7 @@ internal inline fun Node(
 	() -> Unit = {},
 ) {
 	val materializedModifier = currentComposer.materialize(modifier)
-	ComposeNode<MosaicNode, Applier<Any>>(
+	ReusableComposeNode<MosaicNode, Applier<Any>>(
 		factory = NodeFactory,
 		update = {
 			set(measurePolicy, SetMeasurePolicy)

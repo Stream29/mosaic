@@ -733,6 +733,23 @@ public final class com/jakewharton/mosaic/ui/SpacerKt {
 	public static final fun Spacer (Lcom/jakewharton/mosaic/modifier/Modifier;Landroidx/compose/runtime/Composer;II)V
 }
 
+public final class com/jakewharton/mosaic/ui/SubcomposeLayout {
+	public static final fun SubcomposeLayout (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun SubcomposeLayout (Lcom/jakewharton/mosaic/ui/SubcomposeLayoutState;Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+}
+
+public final class com/jakewharton/mosaic/ui/SubcomposeLayoutState {
+	public static final field $stable I
+	public fun <init> ()V
+	public fun <init> (I)V
+	public synthetic fun <init> (IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public abstract interface class com/jakewharton/mosaic/ui/SubcomposeMeasureScope : com/jakewharton/mosaic/layout/MeasureScope {
+	public abstract fun subcompose (Ljava/lang/Object;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/util/List;
+	public static synthetic fun subcompose$default (Lcom/jakewharton/mosaic/ui/SubcomposeMeasureScope;Ljava/lang/Object;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Ljava/util/List;
+}
+
 public final class com/jakewharton/mosaic/ui/Text {
 	public static final fun Text-cbmis8g (Lcom/jakewharton/mosaic/text/AnnotatedString;Lcom/jakewharton/mosaic/modifier/Modifier;IIIIILandroidx/compose/runtime/Composer;II)V
 	public static final fun Text-cbmis8g (Ljava/lang/String;Lcom/jakewharton/mosaic/modifier/Modifier;IIIIILandroidx/compose/runtime/Composer;II)V
