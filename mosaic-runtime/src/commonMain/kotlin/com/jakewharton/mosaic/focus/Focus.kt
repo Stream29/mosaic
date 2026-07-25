@@ -2,8 +2,12 @@ package com.jakewharton.mosaic.focus
 
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.annotation.RememberInComposition
+import com.jakewharton.mosaic.layout.bringIntoView
 import com.jakewharton.mosaic.modifier.Modifier
+import com.jakewharton.mosaic.node.ModifierNodeElement
 import kotlin.jvm.JvmInline
+import kotlinx.coroutines.CoroutineStart.UNDISPATCHED
+import kotlinx.coroutines.launch
 
 /** The focus state of a focus target. */
 public enum class FocusState {
@@ -178,14 +182,32 @@ internal class FocusTargetHandle : FocusBoundaryHandle {
 	var autoFocus: Boolean = false
 }
 
+internal class FocusTargetNode(
+	enabled: Boolean,
+	autoFocus: Boolean,
+) : Modifier.Node() {
+	val handle = FocusTargetHandle()
+
+	init {
+		update(enabled, autoFocus)
+	}
+
+	fun update(enabled: Boolean, autoFocus: Boolean) {
+		handle.enabled = enabled
+		handle.autoFocus = autoFocus
+	}
+
+	fun requestBringIntoView() {
+		if (!isAttached) return
+		coroutineScope.launch(start = UNDISPATCHED) {
+			bringIntoView()
+		}
+	}
+}
+
 internal class FocusScopeHandle : FocusBoundaryHandle {
 	var enabled: Boolean = true
 	var trapsFocus: Boolean = false
-}
-
-internal interface FocusTargetModifier : Modifier.Element {
-	val enabled: Boolean
-	val autoFocus: Boolean
 }
 
 internal interface FocusScopeModifier : Modifier.Element {
@@ -206,10 +228,16 @@ internal interface FocusCursorModifier : Modifier.Element {
 	val row: Int
 }
 
-private class FocusTargetModifierElement(
-	override val enabled: Boolean,
-	override val autoFocus: Boolean,
-) : FocusTargetModifier
+private data class FocusTargetModifierElement(
+	val enabled: Boolean,
+	val autoFocus: Boolean,
+) : ModifierNodeElement<FocusTargetNode>() {
+	override fun create(): FocusTargetNode = FocusTargetNode(enabled, autoFocus)
+
+	override fun update(node: FocusTargetNode) {
+		node.update(enabled, autoFocus)
+	}
+}
 
 private class FocusScopeModifierElement(
 	override val enabled: Boolean,

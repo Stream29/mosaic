@@ -2,6 +2,7 @@ package com.jakewharton.mosaic.layout
 
 import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.ui.unit.IntOffset
+import com.jakewharton.mosaic.ui.unit.IntRect
 
 /** Owns pointer hit paths, hover transitions, and press capture for the current layout tree. */
 internal class PointerOwner {
@@ -68,9 +69,9 @@ internal class PointerOwner {
 internal class PointerTreeCollector {
 	private val entries = mutableListOf<PointerEntry>()
 	private val path = mutableListOf<PointerEntry>()
-	private val clipStack = mutableListOf<ClipBounds>()
+	private val clipStack = mutableListOf<IntRect>()
 
-	fun visitClip(bounds: ClipBounds, block: () -> Unit) {
+	fun visitClip(bounds: IntRect, block: () -> Unit) {
 		clipStack += clipStack.lastOrNull()?.intersect(bounds) ?: bounds
 		block()
 		clipStack.removeAt(clipStack.lastIndex)
@@ -138,7 +139,7 @@ internal class PointerEntry(
 	val node: PointerNode,
 	val coordinates: LayoutCoordinates,
 	val parent: PointerEntry?,
-	val clipBounds: ClipBounds?,
+	val clipBounds: IntRect?,
 )
 
 /** @return the input node which consumed [event], or `null` when it remained unconsumed. */
@@ -188,7 +189,7 @@ private fun LayoutCoordinates.contains(position: IntOffset): Boolean = position.
 	position.y in this.position.y until this.position.y + size.height
 
 private fun PointerEntry.contains(position: IntOffset): Boolean = coordinates.contains(position) &&
-	(clipBounds?.contains(position.x, position.y) != false)
+	(clipBounds?.contains(position) != false)
 
 private fun PointerEvent.localTo(origin: IntOffset): PointerEvent = PointerEvent(
 	position = IntOffset(position.x - origin.x, position.y - origin.y),

@@ -146,6 +146,49 @@ public final class com/jakewharton/mosaic/layout/BackgroundKt {
 	public static final fun background-fCupJr8 (Lcom/jakewharton/mosaic/modifier/Modifier;I)Lcom/jakewharton/mosaic/modifier/Modifier;
 }
 
+public abstract interface class com/jakewharton/mosaic/layout/BeyondBoundsLayout {
+	public abstract fun layout-sY1osuM (ILkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+}
+
+public abstract interface class com/jakewharton/mosaic/layout/BeyondBoundsLayout$BeyondBoundsScope {
+	public abstract fun getHasMoreContent ()Z
+}
+
+public final class com/jakewharton/mosaic/layout/BeyondBoundsLayout$LayoutDirection {
+	public static final field Companion Lcom/jakewharton/mosaic/layout/BeyondBoundsLayout$LayoutDirection$Companion;
+	public static final synthetic fun box-impl (I)Lcom/jakewharton/mosaic/layout/BeyondBoundsLayout$LayoutDirection;
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (ILjava/lang/Object;)Z
+	public static final fun equals-impl0 (II)Z
+	public fun hashCode ()I
+	public static fun hashCode-impl (I)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (I)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()I
+}
+
+public final class com/jakewharton/mosaic/layout/BeyondBoundsLayout$LayoutDirection$Companion {
+	public final fun getAbove-dOmYFJg ()I
+	public final fun getAfter-dOmYFJg ()I
+	public final fun getBefore-dOmYFJg ()I
+	public final fun getBelow-dOmYFJg ()I
+	public final fun getLeft-dOmYFJg ()I
+	public final fun getRight-dOmYFJg ()I
+}
+
+public abstract interface class com/jakewharton/mosaic/layout/BeyondBoundsLayoutProviderModifierNode : com/jakewharton/mosaic/node/DelegatableNode {
+	public abstract fun getBeyondBoundsLayout ()Lcom/jakewharton/mosaic/layout/BeyondBoundsLayout;
+}
+
+public abstract interface class com/jakewharton/mosaic/layout/BringIntoViewModifierNode : com/jakewharton/mosaic/node/DelegatableNode {
+	public abstract fun bringIntoView (Lcom/jakewharton/mosaic/layout/LayoutCoordinates;Lkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class com/jakewharton/mosaic/layout/BringIntoViewModifierNodeKt {
+	public static final fun bringIntoView (Lcom/jakewharton/mosaic/node/DelegatableNode;Lkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun bringIntoView$default (Lcom/jakewharton/mosaic/node/DelegatableNode;Lkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
 public final class com/jakewharton/mosaic/layout/ClipKt {
 	public static final fun clipToBounds (Lcom/jakewharton/mosaic/modifier/Modifier;)Lcom/jakewharton/mosaic/modifier/Modifier;
 }
@@ -249,6 +292,7 @@ public final class com/jakewharton/mosaic/layout/LayoutCoordinates {
 	public final fun getPosition--lBJcEo ()J
 	public final fun getSize-Usd9Mdw ()J
 	public fun hashCode ()I
+	public final fun isAttached ()Z
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -360,6 +404,14 @@ public final class com/jakewharton/mosaic/layout/PointerModifierKt {
 	public static final fun onPreviewPointerEvent (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
 }
 
+public abstract interface class com/jakewharton/mosaic/layout/Remeasurement {
+	public abstract fun forceRemeasure ()V
+}
+
+public abstract interface class com/jakewharton/mosaic/layout/RemeasurementModifier : com/jakewharton/mosaic/modifier/Modifier$Element {
+	public abstract fun onRemeasurementAvailable (Lcom/jakewharton/mosaic/layout/Remeasurement;)V
+}
+
 public final class com/jakewharton/mosaic/layout/SizeKt {
 	public static final fun defaultMinSize (Lcom/jakewharton/mosaic/modifier/Modifier;II)Lcom/jakewharton/mosaic/modifier/Modifier;
 	public static synthetic fun defaultMinSize$default (Lcom/jakewharton/mosaic/modifier/Modifier;IIILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
@@ -443,6 +495,35 @@ public abstract interface class com/jakewharton/mosaic/modifier/Modifier$Element
 	public fun any (Lkotlin/jvm/functions/Function1;)Z
 	public fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
 	public fun foldOut (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
+}
+
+public abstract class com/jakewharton/mosaic/modifier/Modifier$Node : com/jakewharton/mosaic/node/DelegatableNode {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun getCoroutineScope ()Lkotlinx/coroutines/CoroutineScope;
+	public final fun getNode ()Lcom/jakewharton/mosaic/modifier/Modifier$Node;
+	public final fun isAttached ()Z
+	public fun onAttach ()V
+	public fun onDetach ()V
+	public fun onReset ()V
+}
+
+public abstract interface class com/jakewharton/mosaic/node/DelegatableNode {
+	public abstract fun getNode ()Lcom/jakewharton/mosaic/modifier/Modifier$Node;
+}
+
+public final class com/jakewharton/mosaic/node/DelegatableNodeKt {
+	public static final fun findNearestBeyondBoundsLayoutAncestor (Lcom/jakewharton/mosaic/node/DelegatableNode;)Lcom/jakewharton/mosaic/layout/BeyondBoundsLayout;
+	public static final fun requireLayoutCoordinates (Lcom/jakewharton/mosaic/node/DelegatableNode;)Lcom/jakewharton/mosaic/layout/LayoutCoordinates;
+}
+
+public abstract class com/jakewharton/mosaic/node/ModifierNodeElement : com/jakewharton/mosaic/modifier/Modifier$Element {
+	public static final field $stable I
+	public fun <init> ()V
+	public abstract fun create ()Lcom/jakewharton/mosaic/modifier/Modifier$Node;
+	public abstract fun equals (Ljava/lang/Object;)Z
+	public abstract fun hashCode ()I
+	public abstract fun update (Lcom/jakewharton/mosaic/modifier/Modifier$Node;)V
 }
 
 public final class com/jakewharton/mosaic/text/AnnotatedString : java/lang/CharSequence {
@@ -900,6 +981,38 @@ public final class com/jakewharton/mosaic/ui/unit/IntOffset$Companion {
 
 public final class com/jakewharton/mosaic/ui/unit/IntOffsetKt {
 	public static final fun IntOffset (II)J
+}
+
+public final class com/jakewharton/mosaic/ui/unit/IntRect {
+	public static final field $stable I
+	public static final field Companion Lcom/jakewharton/mosaic/ui/unit/IntRect$Companion;
+	public fun <init> (IIII)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun copy (IIII)Lcom/jakewharton/mosaic/ui/unit/IntRect;
+	public static synthetic fun copy$default (Lcom/jakewharton/mosaic/ui/unit/IntRect;IIIIILjava/lang/Object;)Lcom/jakewharton/mosaic/ui/unit/IntRect;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBottom ()I
+	public final fun getHeight ()I
+	public final fun getLeft ()I
+	public final fun getRight ()I
+	public final fun getSize-Usd9Mdw ()J
+	public final fun getTop ()I
+	public final fun getWidth ()I
+	public fun hashCode ()I
+	public final fun isEmpty ()Z
+	public fun toString ()Ljava/lang/String;
+	public final fun translate-6xaC33Y (J)Lcom/jakewharton/mosaic/ui/unit/IntRect;
+}
+
+public final class com/jakewharton/mosaic/ui/unit/IntRect$Companion {
+	public final fun getZero ()Lcom/jakewharton/mosaic/ui/unit/IntRect;
+}
+
+public final class com/jakewharton/mosaic/ui/unit/IntRectKt {
+	public static final fun IntRect-tjIubN0 (JJ)Lcom/jakewharton/mosaic/ui/unit/IntRect;
 }
 
 public final class com/jakewharton/mosaic/ui/unit/IntSize {

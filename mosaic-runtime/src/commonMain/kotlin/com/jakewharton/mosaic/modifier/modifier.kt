@@ -17,6 +17,12 @@
 package com.jakewharton.mosaic.modifier
 
 import androidx.compose.runtime.Stable
+import com.jakewharton.mosaic.layout.LayoutCoordinates
+import com.jakewharton.mosaic.layout.MosaicNode
+import com.jakewharton.mosaic.node.DelegatableNode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 
 /**
  * An ordered, immutable collection of [modifier elements][Modifier.Element] that decorate or add
@@ -99,6 +105,124 @@ public interface Modifier {
 		override fun any(predicate: (Element) -> Boolean): Boolean = predicate(this)
 
 		override fun all(predicate: (Element) -> Boolean): Boolean = predicate(this)
+	}
+
+	/**
+	 * A stateful object associated with a [Modifier.Element].
+	 *
+	 * Nodes are created and updated by a
+	 * [com.jakewharton.mosaic.node.ModifierNodeElement]. A node may implement additional node
+	 * interfaces to participate in Mosaic subsystems without storing mutable state in the
+	 * immutable modifier element.
+	 */
+	public abstract class Node : DelegatableNode {
+		public final override val node: Node
+			get() = this
+
+		/** `null` before this attachment first requests a scope and after it is detached. */
+		private var attachedScope: CoroutineScope? = null
+
+		/**
+		 * A scope whose lifetime matches this node's current attachment.
+		 *
+		 * Access is valid only between [onAttach] and [onDetach]. Detaching the node cancels the
+		 * scope after [onDetach] returns.
+		 */
+		public val coroutineScope: CoroutineScope
+			get() {
+				check(isAttached) { "Cannot access coroutineScope while the node is detached" }
+				return attachedScope ?: requireLayoutNode().createModifierNodeScope().also {
+					attachedScope = it
+				}
+			}
+
+		/** Whether this node is attached to a Mosaic layout tree. */
+		public var isAttached: Boolean = false
+			private set
+
+		private var attachLifecyclePending: Boolean = false
+		private var detachLifecyclePending: Boolean = false
+
+		/** `null` means this is the outermost node in its local modifier chain. */
+		internal var parent: Node? = null
+
+		/** `null` means this is the innermost node in its local modifier chain. */
+		internal var child: Node? = null
+
+		/** `null` means this node is not bound to a Mosaic layout node. */
+		internal var layoutNode: MosaicNode? = null
+
+		/** `null` means this node has not been placed during its current attachment. */
+		internal var layoutCoordinates: LayoutCoordinates? = null
+
+		/** Called after this node becomes attached to a Mosaic layout tree. */
+		public open fun onAttach(): Unit = Unit
+
+		/** Called immediately before this node becomes detached from its Mosaic layout tree. */
+		public open fun onDetach(): Unit = Unit
+
+		/** Called before an attached layout node is reused for semantically different content. */
+		public open fun onReset(): Unit = Unit
+
+		internal fun bind(layoutNode: MosaicNode) {
+			check(this.layoutNode == null) { "Modifier node is already bound to a layout node" }
+			this.layoutNode = layoutNode
+		}
+
+		internal fun unbind() {
+			check(!isAttached) { "Cannot unbind an attached modifier node" }
+			layoutNode = null
+			layoutCoordinates?.detach()
+			layoutCoordinates = null
+			parent = null
+			child = null
+		}
+
+		internal fun markAttached() {
+			check(!isAttached) { "Modifier node is already attached" }
+			check(layoutNode != null) { "Cannot attach an unbound modifier node" }
+			isAttached = true
+			attachLifecyclePending = true
+		}
+
+		internal fun runAttachLifecycle() {
+			check(isAttached) { "Cannot run attach lifecycle for a detached modifier node" }
+			check(attachLifecyclePending) { "Modifier node attach lifecycle already ran" }
+			attachLifecyclePending = false
+			onAttach()
+			detachLifecyclePending = true
+		}
+
+		internal fun runDetachLifecycle() {
+			check(isAttached) { "Cannot run detach lifecycle for a detached modifier node" }
+			check(detachLifecyclePending) { "Modifier node detach lifecycle already ran" }
+			detachLifecyclePending = false
+			onDetach()
+		}
+
+		internal fun markDetached() {
+			check(isAttached) { "Modifier node is already detached" }
+			check(!attachLifecyclePending) { "Modifier node attach lifecycle has not run" }
+			check(!detachLifecyclePending) { "Modifier node detach lifecycle has not run" }
+			isAttached = false
+			layoutCoordinates?.detach()
+			attachedScope?.cancel()
+			attachedScope = null
+		}
+
+		internal fun reset() {
+			check(isAttached) { "Cannot reset a detached modifier node" }
+			onReset()
+		}
+
+		internal fun requireLayoutNode(): MosaicNode = checkNotNull(layoutNode) {
+			"Modifier node is not bound to a layout node"
+		}
+
+		private fun MosaicNode.createModifierNodeScope(): CoroutineScope {
+			val parentContext = modifierNodeCoroutineContext
+			return CoroutineScope(parentContext + Job(parentContext[Job]))
+		}
 	}
 
 	/**

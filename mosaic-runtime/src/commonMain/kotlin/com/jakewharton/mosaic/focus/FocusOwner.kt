@@ -1,10 +1,11 @@
 package com.jakewharton.mosaic.focus
 
 import com.jakewharton.mosaic.TerminalCursorPosition
-import com.jakewharton.mosaic.layout.ClipBounds
+import com.jakewharton.mosaic.layout.BeyondBoundsLayout
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.KeyModifier
 import com.jakewharton.mosaic.ui.unit.IntOffset
+import com.jakewharton.mosaic.ui.unit.IntRect
 import com.jakewharton.mosaic.ui.unit.IntSize
 
 /**
@@ -17,6 +18,8 @@ import com.jakewharton.mosaic.ui.unit.IntSize
  * @property rootRememberedTarget `null` means that the root scope has not focused a target yet.
  * @property restoreTargets A `null` value records that a trap was entered while no target owned
  * focus, so leaving that trap must restore the unfocused state.
+ * @property pendingBringIntoView `null` means that layout reconciliation did not newly focus a
+ * target which still needs post-layout relocation.
  */
 internal class FocusOwner(
 	private val onCursorChanged: (TerminalCursorPosition?) -> Unit,
@@ -29,6 +32,8 @@ internal class FocusOwner(
 	private val rememberedTargets = mutableMapOf<FocusScopeHandle, FocusTargetHandle>()
 	private val restoreTargets = mutableMapOf<FocusScopeHandle, FocusTargetHandle?>()
 	private var requesterBindings = emptyMap<FocusRequesterNode, FocusRequester>()
+	private var pendingBringIntoView: FocusTargetHandle? = null
+	private var isReconciling = false
 
 	val ownsKeyDispatch: Boolean
 		get() = focusedTarget != null || activeTrap != null
@@ -38,34 +43,49 @@ internal class FocusOwner(
 	}
 
 	fun reconcile(updatedTree: FocusTree) {
-		val nextTrapStack = updatedTree.activeTrapStack()
-		val nextTrap = nextTrapStack.lastOrNull()?.let(updatedTree::scope)
-		val sharedTrapCount = activeTrapStack.commonPrefixSize(nextTrapStack)
-		var preferredTarget = focusedTarget
+		check(!isReconciling) { "Focus tree reconciliation is already in progress." }
+		isReconciling = true
+		try {
+			val nextTrapStack = updatedTree.activeTrapStack()
+			val nextTrap = nextTrapStack.lastOrNull()?.let(updatedTree::scope)
+			val sharedTrapCount = activeTrapStack.commonIdentityPrefixSize(nextTrapStack)
+			var preferredTarget = focusedTarget
 
-		for (index in activeTrapStack.lastIndex downTo sharedTrapCount) {
-			preferredTarget = restoreTargets.remove(activeTrapStack[index])
+			for (index in activeTrapStack.lastIndex downTo sharedTrapCount) {
+				preferredTarget = restoreTargets.remove(activeTrapStack[index])
+			}
+
+			tree = updatedTree
+			activeTrap = nextTrap
+			activeTrapStack = nextTrapStack
+			bindRequesters()
+
+			for (index in sharedTrapCount until nextTrapStack.size) {
+				val scope = tree.scope(nextTrapStack[index]) ?: continue
+				restoreTargets[scope.handle] = preferredTarget
+				preferredTarget = defaultTarget(scope)
+			}
+
+			val target = preferredTarget
+				?.takeIf(::isEligible)
+				?: defaultTarget(nextTrap)
+			select(target)
+
+			val attachedScopes = updatedTree.scopes.mapTo(mutableSetOf(), FocusScopeEntry::handle)
+			restoreTargets.keys.retainAll(attachedScopes)
+			rememberedTargets.keys.retainAll(attachedScopes)
+		} finally {
+			isReconciling = false
 		}
+	}
 
-		tree = updatedTree
-		activeTrap = nextTrap
-		activeTrapStack = nextTrapStack
-		bindRequesters()
-
-		for (index in sharedTrapCount until nextTrapStack.size) {
-			val scope = tree.scope(nextTrapStack[index]) ?: continue
-			restoreTargets[scope.handle] = preferredTarget
-			preferredTarget = defaultTarget(scope)
-		}
-
-		val target = preferredTarget
-			?.takeIf(::isEligible)
-			?: defaultTarget(nextTrap)
-		select(target)
-
-		val attachedScopes = updatedTree.scopes.mapTo(mutableSetOf(), FocusScopeEntry::handle)
-		restoreTargets.keys.retainAll(attachedScopes)
-		rememberedTargets.keys.retainAll(attachedScopes)
+	/** Completes relocation deferred by focus acquired during the preceding layout pass. */
+	fun performPendingBringIntoView() {
+		val target = pendingBringIntoView ?: return
+		pendingBringIntoView = null
+		if (focusedTarget !== target) return
+		val entry = tree.target(target) ?: return
+		entry.node.requestBringIntoView()
 	}
 
 	fun requestFocus(requester: FocusRequesterNode, focusDirection: FocusDirection): Boolean {
@@ -166,13 +186,19 @@ internal class FocusOwner(
 		if (targets.isEmpty()) return false
 
 		val currentIndex = targets.indexOfFirst { it.handle === focusedTarget }
+		if (currentIndex == -1) {
+			return select(if (forward) targets.first().handle else targets.last().handle)
+		}
+		val wrapped = if (forward) currentIndex == targets.lastIndex else currentIndex == 0
 		val nextIndex = when {
 			forward -> (currentIndex + 1).mod(targets.size)
-			currentIndex <= 0 -> targets.lastIndex
+			currentIndex == 0 -> targets.lastIndex
 			else -> currentIndex - 1
 		}
-		select(targets[nextIndex].handle)
-		return true
+		val current = targets[currentIndex]
+		val candidate = targets[nextIndex]
+		val direction = if (forward) FocusDirection.Next else FocusDirection.Previous
+		return moveOrSearchBeyondBounds(current, candidate, direction, wrapped)
 	}
 
 	private fun moveDirectionally(direction: FocusDirection): Boolean {
@@ -190,13 +216,108 @@ internal class FocusOwner(
 					(searchScope == null || target.isWithin(searchScope))
 			}
 			if (candidate != null) {
-				select(candidate.handle)
-				return true
+				return moveOrSearchBeyondBounds(current, candidate, direction, wrapped = false)
 			}
 
-			if (scope == null || scope.handle.trapsFocus) return false
+			if (scope == null || scope.handle.trapsFocus) {
+				return moveOrSearchBeyondBounds(current, candidate = null, direction, wrapped = false)
+			}
 			scope = scope.parent
 		}
+	}
+
+	/** @param candidate `null` means that ordinary focus search found no destination. */
+	private fun moveOrSearchBeyondBounds(
+		current: FocusTargetEntry,
+		candidate: FocusTargetEntry?,
+		direction: FocusDirection,
+		wrapped: Boolean,
+	): Boolean {
+		val beyondBoundsLayout = current.innermostBeyondBoundsLayoutExitedBy(candidate, wrapped)
+			?: return candidate?.let { select(it.handle) } ?: false
+		val source = current.handle
+		beyondBoundsLayout.layout(direction.toBeyondBoundsLayoutDirection()) {
+			val updatedSource = tree.target(source)
+			if (focusedTarget !== source) return@layout true
+			if (updatedSource == null || !isEligible(updatedSource)) return@layout false
+
+			val visibleTarget = visibleCandidate(updatedSource, direction, beyondBoundsLayout)
+			if (visibleTarget != null) {
+				val selected = select(visibleTarget)
+				if (selected || focusedTarget !== source) return@layout true
+			}
+
+			val hiddenTarget = hiddenCandidate(updatedSource, direction, beyondBoundsLayout)
+			if (hiddenTarget != null) {
+				val selected = select(hiddenTarget)
+				if (selected || focusedTarget !== source) return@layout true
+			}
+
+			null
+		}
+
+		val movedTarget = focusedTarget
+		if (movedTarget !== source && movedTarget != null && isEligible(movedTarget)) {
+			return true
+		}
+		return candidate
+			?.handle
+			?.takeIf(::isEligible)
+			?.let(::select)
+			?: false
+	}
+
+	/** @return `null` when this provider has no eligible hidden candidate in [direction]. */
+	private fun hiddenCandidate(
+		source: FocusTargetEntry,
+		direction: FocusDirection,
+		beyondBoundsLayout: BeyondBoundsLayout,
+	): FocusTargetEntry? {
+		val candidates = tree.hiddenTargets.filter { target ->
+			target.beyondBoundsLayouts.any { it === beyondBoundsLayout } &&
+				isEligible(target)
+		}
+		return focusCandidate(source, direction, candidates)
+	}
+
+	/** @return `null` when this provider has no eligible visible candidate in [direction]. */
+	private fun visibleCandidate(
+		source: FocusTargetEntry,
+		direction: FocusDirection,
+		beyondBoundsLayout: BeyondBoundsLayout,
+	): FocusTargetEntry? = focusCandidate(
+		source = source,
+		direction = direction,
+		candidates = tree.targets.filter { target ->
+			target.handle !== source.handle &&
+				target.beyondBoundsLayouts.any { it === beyondBoundsLayout } &&
+				isEligible(target)
+		},
+	)
+
+	/** @return `null` when [candidates] has no target after [source] in [direction]. */
+	private fun focusCandidate(
+		source: FocusTargetEntry,
+		direction: FocusDirection,
+		candidates: List<FocusTargetEntry>,
+	): FocusTargetEntry? = when (direction) {
+		FocusDirection.Next ->
+			candidates
+				.filter { target -> target.order > source.order }
+				.minByOrNull(FocusTargetEntry::order)
+
+		FocusDirection.Previous ->
+			candidates
+				.filter { target -> target.order < source.order }
+				.maxByOrNull(FocusTargetEntry::order)
+
+		FocusDirection.Left,
+		FocusDirection.Right,
+		FocusDirection.Up,
+		FocusDirection.Down,
+		-> candidates.bestCandidate(source.bounds, direction)
+
+		else -> null
 	}
 
 	/**
@@ -232,13 +353,49 @@ internal class FocusOwner(
 
 	/** @param target `null` clears focus because the current tree has no eligible target. */
 	private fun select(target: FocusTargetHandle?): Boolean {
+		return select(target, target?.let(tree::target))
+	}
+
+	private fun select(target: FocusTargetEntry): Boolean {
+		return select(target.handle, target)
+	}
+
+	/**
+	 * @param requestedEntry `null` means that [target] is also `null` and this operation clears focus.
+	 */
+	private fun select(
+		target: FocusTargetHandle?,
+		requestedEntry: FocusTargetEntry?,
+	): Boolean {
+		val previousTarget = focusedTarget
 		focusedTarget = target
-		val entry = target?.let(tree::target)
+		var entry = requestedEntry
+		if (target != null && entry == null) {
+			focusedTarget = previousTarget
+			return false
+		}
+		if (entry != null && previousTarget !== target) {
+			check(entry.handle === target)
+			val requestedHandle = entry.handle
+			if (isReconciling) {
+				pendingBringIntoView = requestedHandle
+			} else {
+				pendingBringIntoView = null
+				entry.node.requestBringIntoView()
+				if (focusedTarget !== requestedHandle) return false
+				entry = tree.target(requestedHandle)
+				if (entry == null) {
+					focusedTarget = previousTarget
+					return false
+				}
+			}
+		}
 		if (entry != null) {
-			rootRememberedTarget = target
+			val selectedHandle = entry.handle
+			rootRememberedTarget = selectedHandle
 			var scope = entry.scope
 			while (scope != null) {
-				rememberedTargets[scope.handle] = target
+				rememberedTargets[scope.handle] = selectedHandle
 				scope = scope.parent
 			}
 		}
@@ -279,22 +436,24 @@ internal class FocusOwner(
 
 internal class FocusTreeCollector {
 	private val targets = mutableListOf<FocusTargetEntry>()
+	private val hiddenTargets = mutableListOf<FocusTargetEntry>()
 	private val scopes = mutableListOf<FocusScopeEntry>()
 	private val requesters = mutableListOf<FocusRequesterEntry>()
 	private val events = mutableListOf<FocusEventEntry>()
 	private val keyModifiers = mutableListOf<KeyModifier>()
 	private val scopeStack = mutableListOf<FocusScopeEntry>()
 	private val focusBoundaryStack = mutableListOf<FocusBoundaryHandle>()
+	private val beyondBoundsLayoutStack = mutableListOf<BeyondBoundsLayout>()
 	private val targetStack = mutableListOf<FocusTargetDraft>()
 	private val requesterStack = mutableListOf<FocusRequesterDraft>()
 	private val eventStack = mutableListOf<FocusEventDraft>()
 
 	/** A `null` entry means the corresponding cursor lies outside the current clipping bounds. */
 	private val cursorPositions = mutableListOf<TerminalCursorPosition?>()
-	private val clipStack = mutableListOf<ClipBounds>()
+	private val clipStack = mutableListOf<IntRect>()
 	private var nextOrder = 0
 
-	fun visitClip(bounds: ClipBounds, block: () -> Unit) {
+	fun visitClip(bounds: IntRect, block: () -> Unit) {
 		clipStack += clipStack.lastOrNull()?.intersect(bounds) ?: bounds
 		block()
 		clipStack.removeAt(clipStack.lastIndex)
@@ -307,37 +466,54 @@ internal class FocusTreeCollector {
 		keyModifiers.removeAt(keyModifiers.lastIndex)
 	}
 
+	fun visitBeyondBoundsLayout(beyondBoundsLayout: BeyondBoundsLayout, block: () -> Unit) {
+		beyondBoundsLayoutStack += beyondBoundsLayout
+		block()
+		beyondBoundsLayoutStack.removeAt(beyondBoundsLayoutStack.lastIndex)
+	}
+
 	fun visitFocusTarget(
-		handle: FocusTargetHandle,
+		node: FocusTargetNode,
 		bounds: FocusBounds,
 		block: () -> Unit,
 	) {
+		val handle = node.handle
 		if (!handle.enabled) {
 			block()
 			return
 		}
 		val clipBounds = clipStack.lastOrNull()
 		val visibleBounds = if (clipBounds == null) bounds else bounds.clipTo(clipBounds)
-		if (visibleBounds == null) {
+		if (
+			visibleBounds == null &&
+			(clipBounds == null || beyondBoundsLayoutStack.isEmpty())
+		) {
 			block()
 			return
 		}
-		recordFocusBoundary(handle)
+		if (visibleBounds != null) recordFocusBoundary(handle)
 		val draft = FocusTargetDraft(
+			node = node,
 			handle = handle,
-			bounds = visibleBounds,
+			bounds = visibleBounds ?: bounds,
 			scope = scopeStack.lastOrNull(),
 			parentFocusBoundary = focusBoundaryStack.lastOrNull(),
 			order = nextOrder++,
 			keyModifiers = keyModifiers.toMutableList(),
 			cursorPosition = cursorPositions.lastOrNull(),
+			beyondBoundsLayouts = beyondBoundsLayoutStack.toList(),
 		)
 		targetStack += draft
 		focusBoundaryStack += handle
 		block()
 		focusBoundaryStack.removeAt(focusBoundaryStack.lastIndex)
 		targetStack.removeAt(targetStack.lastIndex)
-		targets += draft.toEntry()
+		val target = draft.toEntry()
+		if (visibleBounds == null) {
+			hiddenTargets += target
+		} else {
+			targets += target
+		}
 	}
 
 	fun visitFocusScope(
@@ -351,20 +527,21 @@ internal class FocusTreeCollector {
 		}
 		val clipBounds = clipStack.lastOrNull()
 		val visibleBounds = if (clipBounds == null) bounds else bounds.clipTo(clipBounds)
-		if (visibleBounds == null) {
+		val preserveHiddenScope = visibleBounds == null && beyondBoundsLayoutStack.isNotEmpty()
+		if (visibleBounds == null && !preserveHiddenScope) {
 			block()
 			return
 		}
-		recordFocusBoundary(handle)
+		if (visibleBounds != null) recordFocusBoundary(handle)
 		val scope = FocusScopeEntry(
 			handle = handle,
-			bounds = visibleBounds,
+			bounds = visibleBounds ?: bounds,
 			parent = scopeStack.lastOrNull(),
 			parentFocusBoundary = focusBoundaryStack.lastOrNull(),
 			order = nextOrder++,
 			keyModifiers = keyModifiers.toList(),
 		)
-		scopes += scope
+		if (visibleBounds != null) scopes += scope
 		scopeStack += scope
 		focusBoundaryStack += handle
 		block()
@@ -399,7 +576,7 @@ internal class FocusTreeCollector {
 
 	fun visitFocusCursor(position: TerminalCursorPosition, block: () -> Unit) {
 		val visiblePosition = position.takeIf { cursor ->
-			clipStack.lastOrNull()?.contains(cursor.column, cursor.row) != false
+			clipStack.lastOrNull()?.contains(IntOffset(cursor.column, cursor.row)) != false
 		}
 		targetStack.lastOrNull()?.cursorPosition = visiblePosition
 		cursorPositions += visiblePosition
@@ -409,6 +586,7 @@ internal class FocusTreeCollector {
 
 	fun build(): FocusTree = FocusTree(
 		targets = targets.sortedBy(FocusTargetEntry::order),
+		hiddenTargets = hiddenTargets.sortedBy(FocusTargetEntry::order),
 		scopes = scopes.sortedBy(FocusScopeEntry::order),
 		requesters = requesters.sortedBy(FocusRequesterEntry::order),
 		events = events.sortedBy(FocusEventEntry::order),
@@ -430,6 +608,7 @@ internal class FocusTreeCollector {
 
 internal data class FocusTree(
 	val targets: List<FocusTargetEntry>,
+	val hiddenTargets: List<FocusTargetEntry>,
 	val scopes: List<FocusScopeEntry>,
 	val requesters: List<FocusRequesterEntry>,
 	val events: List<FocusEventEntry>,
@@ -444,7 +623,7 @@ internal data class FocusTree(
 	/** @return `null` when [handle] is not attached to the current layout tree. */
 	fun scope(handle: FocusScopeHandle): FocusScopeEntry? = scopesByHandle[handle]
 
-	/** @return `null` when [handle] is not attached to the current layout tree. */
+	/** @return `null` when [node] is not attached to the current layout tree. */
 	fun requester(node: FocusRequesterNode): FocusRequesterEntry? = requestersByNode[node]
 
 	fun activeTrapStack(): List<FocusScopeHandle> = scopes
@@ -454,7 +633,13 @@ internal data class FocusTree(
 		.toList()
 
 	companion object {
-		val Empty = FocusTree(emptyList(), emptyList(), emptyList(), emptyList())
+		val Empty = FocusTree(
+			targets = emptyList(),
+			hiddenTargets = emptyList(),
+			scopes = emptyList(),
+			requesters = emptyList(),
+			events = emptyList(),
+		)
 	}
 }
 
@@ -487,12 +672,14 @@ private fun FocusTargetHandle.isWithin(
 }
 
 /**
+ * @property bounds Visible bounds used for focus search, or full bounds for a beyond-bounds target.
  * @property scope `null` means that this target belongs directly to the root focus scope.
  * @property parentFocusBoundary `null` means that no focus target or scope encloses this target.
  * @property cursorPosition `null` means that the target uses its top-left terminal cell as the
  * cursor anchor.
  */
 internal data class FocusTargetEntry(
+	val node: FocusTargetNode,
 	val handle: FocusTargetHandle,
 	val bounds: FocusBounds,
 	val scope: FocusScopeEntry?,
@@ -500,6 +687,7 @@ internal data class FocusTargetEntry(
 	val order: Int,
 	val keyModifiers: List<KeyModifier>,
 	val cursorPosition: TerminalCursorPosition?,
+	val beyondBoundsLayouts: List<BeyondBoundsLayout>,
 )
 
 internal data class FocusRequesterEntry(
@@ -670,15 +858,12 @@ internal data class FocusBounds(
 	}
 }
 
-private fun FocusBounds.clipTo(bounds: ClipBounds): FocusBounds? {
-	val intersection = ClipBounds.from(position, size).intersect(bounds)
-	if (!intersection.hasArea) return null
+private fun FocusBounds.clipTo(bounds: IntRect): FocusBounds? {
+	val intersection = IntRect(position, size).intersect(bounds)
+	if (intersection.isEmpty) return null
 	return FocusBounds(
 		position = IntOffset(intersection.left, intersection.top),
-		size = IntSize(
-			width = intersection.right - intersection.left,
-			height = intersection.bottom - intersection.top,
-		),
+		size = intersection.size,
 	)
 }
 
@@ -689,6 +874,7 @@ private fun FocusBounds.clipTo(bounds: ClipBounds): FocusBounds? {
  * the completed target will use its top-left terminal cell.
  */
 private class FocusTargetDraft(
+	val node: FocusTargetNode,
 	val handle: FocusTargetHandle,
 	val bounds: FocusBounds,
 	val scope: FocusScopeEntry?,
@@ -696,8 +882,10 @@ private class FocusTargetDraft(
 	val order: Int,
 	val keyModifiers: MutableList<KeyModifier>,
 	var cursorPosition: TerminalCursorPosition?,
+	val beyondBoundsLayouts: List<BeyondBoundsLayout>,
 ) {
 	fun toEntry(): FocusTargetEntry = FocusTargetEntry(
+		node = node,
 		handle = handle,
 		bounds = bounds,
 		scope = scope,
@@ -705,6 +893,7 @@ private class FocusTargetDraft(
 		order = order,
 		keyModifiers = keyModifiers.toList(),
 		cursorPosition = cursorPosition,
+		beyondBoundsLayouts = beyondBoundsLayouts,
 	)
 }
 
@@ -747,6 +936,30 @@ private fun FocusTargetEntry.isWithin(scope: FocusScopeEntry): Boolean {
 
 private fun FocusTargetEntry.isFocusable(): Boolean = handle.enabled && bounds.hasArea()
 
+/**
+ * @param candidate `null` means that ordinary focus search found no destination.
+ * @return The innermost provider exited by this move, or `null` when [candidate] remains in every
+ * provider containing this target.
+ */
+private fun FocusTargetEntry.innermostBeyondBoundsLayoutExitedBy(
+	candidate: FocusTargetEntry?,
+	wrapped: Boolean,
+): BeyondBoundsLayout? {
+	if (candidate == null || wrapped) return beyondBoundsLayouts.lastOrNull()
+	val sharedCount = beyondBoundsLayouts.commonIdentityPrefixSize(candidate.beyondBoundsLayouts)
+	return beyondBoundsLayouts.subList(sharedCount, beyondBoundsLayouts.size).lastOrNull()
+}
+
+private fun FocusDirection.toBeyondBoundsLayoutDirection(): BeyondBoundsLayout.LayoutDirection = when (this) {
+	FocusDirection.Next -> BeyondBoundsLayout.LayoutDirection.After
+	FocusDirection.Previous -> BeyondBoundsLayout.LayoutDirection.Before
+	FocusDirection.Left -> BeyondBoundsLayout.LayoutDirection.Left
+	FocusDirection.Right -> BeyondBoundsLayout.LayoutDirection.Right
+	FocusDirection.Up -> BeyondBoundsLayout.LayoutDirection.Above
+	FocusDirection.Down -> BeyondBoundsLayout.LayoutDirection.Below
+	else -> error("Unsupported beyond-bounds focus direction: $this")
+}
+
 /** @return `null` when this collection contains no eligible candidate in [direction]. */
 private inline fun Iterable<FocusTargetEntry>.bestCandidate(
 	focused: FocusBounds,
@@ -765,7 +978,7 @@ private inline fun Iterable<FocusTargetEntry>.bestCandidate(
 	return bestCandidate
 }
 
-private fun List<FocusScopeHandle>.commonPrefixSize(other: List<FocusScopeHandle>): Int {
+private fun <T : Any> List<T>.commonIdentityPrefixSize(other: List<T>): Int {
 	val limit = minOf(size, other.size)
 	for (index in 0 until limit) {
 		if (this[index] !== other[index]) return index

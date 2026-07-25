@@ -19,6 +19,7 @@ import com.jakewharton.mosaic.NonInteractivePolicy.Exit
 import com.jakewharton.mosaic.focus.FocusOwner
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.MosaicNode
+import com.jakewharton.mosaic.layout.MosaicNodeOwner
 import com.jakewharton.mosaic.layout.PointerEvent
 import com.jakewharton.mosaic.layout.PointerOwner
 import com.jakewharton.mosaic.terminal.KeyboardEvent
@@ -32,6 +33,7 @@ import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart.UNDISPATCHED
@@ -140,7 +142,8 @@ internal class MosaicComposition(
 	private val onDraw: (Mosaic) -> Unit,
 	private val terminal: Terminal,
 ) : Mosaic,
-	LifecycleOwner {
+	LifecycleOwner,
+	MosaicNodeOwner {
 	private val externalClock = checkNotNull(coroutineContext[MonotonicFrameClock]) {
 		"Mosaic requires an external MonotonicFrameClock in its coroutine context"
 	}
@@ -149,8 +152,13 @@ internal class MosaicComposition(
 	private val job = Job(coroutineContext[Job])
 	private val composeContext = coroutineContext + job + internalClock
 	val scope = CoroutineScope(composeContext)
+	override val coroutineContext: CoroutineContext
+		get() = composeContext
 
-	private val applier = MosaicNodeApplier { needLayout = true }
+	private val applier = MosaicNodeApplier(
+		owner = this,
+		onChanges = { needLayout = true },
+	)
 	val rootNode = applier.root
 	private val recomposer = Recomposer(composeContext)
 	private val composition = Composition(applier, recomposer)
@@ -213,6 +221,8 @@ internal class MosaicComposition(
 	@Volatile
 	private var needDraw = false
 
+	private var isPerformingLayout = false
+
 	init {
 		GlobalSnapshotManager().ensureStarted(scope)
 		startRecomposer()
@@ -220,17 +230,39 @@ internal class MosaicComposition(
 		applyObserverHandle = registerSnapshotApplyObserver()
 	}
 
-	private fun performLayout() {
-		needLayout = false
+	private fun performLayout(draw: Boolean = true) {
+		check(!isPerformingLayout) {
+			"Cannot force remeasurement while Mosaic is already measuring"
+		}
+		isPerformingLayout = true
+		try {
+			needLayout = false
 
-		readStatesOnLayout.clear()
-		Snapshot.observe(readObserver = readStatesOnLayoutObserver) {
-			rootNode.measureAndPlace()
-			focusOwner.reconcile(rootNode.collectFocusTree())
-			pointerOwner.reconcile(rootNode.collectPointerTree())
+			readStatesOnLayout.clear()
+			Snapshot.observe(readObserver = readStatesOnLayoutObserver) {
+				rootNode.measureAndPlace()
+				focusOwner.reconcile(rootNode.collectFocusTree())
+				pointerOwner.reconcile(rootNode.collectPointerTree())
+			}
+		} finally {
+			isPerformingLayout = false
 		}
 
-		performDraw()
+		focusOwner.performPendingBringIntoView()
+
+		if (draw) {
+			performDraw()
+		} else {
+			needDraw = true
+		}
+	}
+
+	override fun onRequestRelayout(node: MosaicNode) {
+		needLayout = true
+	}
+
+	override fun measureAndLayout(node: MosaicNode) {
+		performLayout(draw = false)
 	}
 
 	private fun performDraw() {
@@ -463,7 +495,33 @@ internal fun MosaicNodeApplier(
 		debugPolicy = { children.joinToString(separator = "\n") },
 		isStatic = false,
 	)
-	root.attachRoot(onChanges)
+	root.attachRoot(
+		object : MosaicNodeOwner {
+			override val coroutineContext: CoroutineContext
+				get() = EmptyCoroutineContext
+
+			override fun onRequestRelayout(node: MosaicNode) {
+				onChanges()
+			}
+
+			override fun measureAndLayout(node: MosaicNode) {
+				root.measureAndPlace()
+			}
+		},
+	)
+	return MosaicNodeApplier(root, onChanges)
+}
+
+internal fun MosaicNodeApplier(
+	owner: MosaicNodeOwner,
+	onChanges: () -> Unit,
+): MosaicNodeApplier {
+	val root = MosaicNode(
+		measurePolicy = BoxMeasurePolicy(),
+		debugPolicy = { children.joinToString(separator = "\n") },
+		isStatic = false,
+	)
+	root.attachRoot(owner)
 	return MosaicNodeApplier(root, onChanges)
 }
 

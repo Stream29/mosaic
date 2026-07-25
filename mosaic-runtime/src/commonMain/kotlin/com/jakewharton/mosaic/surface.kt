@@ -1,6 +1,5 @@
 package com.jakewharton.mosaic
 
-import com.jakewharton.mosaic.layout.ClipBounds
 import com.jakewharton.mosaic.terminal.AnsiLevel
 import com.jakewharton.mosaic.ui.Color
 import com.jakewharton.mosaic.ui.TextStyle
@@ -16,6 +15,9 @@ import com.jakewharton.mosaic.ui.isSpecifiedColor
 import com.jakewharton.mosaic.ui.isSpecifiedUnderlineStyle
 import com.jakewharton.mosaic.ui.isUnspecifiedColor
 import com.jakewharton.mosaic.ui.isUnspecifiedUnderlineStyle
+import com.jakewharton.mosaic.ui.unit.IntOffset
+import com.jakewharton.mosaic.ui.unit.IntRect
+import com.jakewharton.mosaic.ui.unit.IntSize
 
 private val blankPixel = TextPixel(" ")
 
@@ -36,13 +38,13 @@ internal class TextSurface(
 	var translationY = 0
 
 	/** `null` means that no explicit clipping modifier is active and bounds remain strict. */
-	private var clipBounds: ClipBounds? = null
+	private var clipBounds: IntRect? = null
 
 	private val cells = Array(width * height) { TextPixel(" ") }
 
-	fun <T> withClip(bounds: ClipBounds, block: () -> T): T {
+	fun <T> withClip(bounds: IntRect, block: () -> T): T {
 		val previousBounds = clipBounds
-		clipBounds = (previousBounds ?: ClipBounds(0, 0, width, height)).intersect(bounds)
+		clipBounds = (previousBounds ?: IntRect(0, 0, width, height)).intersect(bounds)
 		return try {
 			block()
 		} finally {
@@ -103,13 +105,25 @@ internal class TextSurface(
 	): TextPixel? {
 		val bounds = clipBounds ?: return replaceText(row, column, text, cellWidth)
 		val y = translationY + row
-		if (!bounds.contains(translationX + column, y, cellWidth, 1)) return null
+		if (
+			!bounds.contains(
+				offset = IntOffset(translationX + column, y),
+				size = IntSize(cellWidth, 1),
+			)
+		) {
+			return null
+		}
 		for (offset in 0 until cellWidth) {
 			val targetColumn = column + offset
 			val pixel = get(row, targetColumn)
 			val leaderColumn = targetColumn - pixel.continuationOffset
 			val leader = get(row, leaderColumn)
-			if (!bounds.contains(translationX + leaderColumn, y, leader.cellWidth.coerceAtLeast(1), 1)) {
+			if (
+				!bounds.contains(
+					offset = IntOffset(translationX + leaderColumn, y),
+					size = IntSize(leader.cellWidth.coerceAtLeast(1), 1),
+				)
+			) {
 				return null
 			}
 		}
@@ -133,11 +147,16 @@ internal class TextSurface(
 		val bounds = clipBounds ?: return textLeaderAt(row, column)
 		val x = translationX + column
 		val y = translationY + row
-		if (!bounds.contains(x, y)) return null
+		if (IntOffset(x, y) !in bounds) return null
 		val pixel = get(row, column)
 		val leaderColumn = column - pixel.continuationOffset
 		val leader = get(row, leaderColumn)
-		if (!bounds.contains(translationX + leaderColumn, y, leader.cellWidth.coerceAtLeast(1), 1)) {
+		if (
+			!bounds.contains(
+				offset = IntOffset(translationX + leaderColumn, y),
+				size = IntSize(leader.cellWidth.coerceAtLeast(1), 1),
+			)
+		) {
 			return null
 		}
 		return leader

@@ -12,16 +12,19 @@ import com.jakewharton.mosaic.focus.FocusRequesterModifier
 import com.jakewharton.mosaic.focus.FocusRequesterNode
 import com.jakewharton.mosaic.focus.FocusScopeHandle
 import com.jakewharton.mosaic.focus.FocusScopeModifier
-import com.jakewharton.mosaic.focus.FocusTargetHandle
-import com.jakewharton.mosaic.focus.FocusTargetModifier
+import com.jakewharton.mosaic.focus.FocusTargetNode
 import com.jakewharton.mosaic.focus.FocusTree
 import com.jakewharton.mosaic.focus.FocusTreeCollector
 import com.jakewharton.mosaic.layout.Placeable.PlacementScope
 import com.jakewharton.mosaic.modifier.Modifier
+import com.jakewharton.mosaic.node.ModifierNodeElement
+import com.jakewharton.mosaic.node.NodeChain
 import com.jakewharton.mosaic.ui.SubcomposeLayoutNodeState
 import com.jakewharton.mosaic.ui.unit.Constraints
 import com.jakewharton.mosaic.ui.unit.IntOffset
+import com.jakewharton.mosaic.ui.unit.IntRect
 import com.jakewharton.mosaic.ui.unit.IntSize
+import kotlin.coroutines.CoroutineContext
 
 internal fun interface DebugPolicy {
 	fun MosaicNode.renderDebug(): String
@@ -107,8 +110,16 @@ internal object NotMeasured : MeasureResult {
 	override fun placeChildren() = throw UnsupportedOperationException("Not measured")
 }
 
-private fun interface MosaicNodeOwner {
-	fun onTreeChange()
+/** Coordinates layout work requested by nodes in one attached Mosaic tree. */
+internal interface MosaicNodeOwner {
+	/** Parent context for work owned by attached modifier nodes. */
+	val coroutineContext: CoroutineContext
+
+	/** Handles a relayout request from [node]. */
+	fun onRequestRelayout(node: MosaicNode)
+
+	/** Measures and lays out the tree affected by [node] before returning. */
+	fun measureAndLayout(node: MosaicNode)
 }
 
 /**
@@ -140,6 +151,8 @@ internal class MosaicNode(
 ) : Measurable,
 	ComposeNodeLifecycleCallback {
 	private val mutableFoldedChildren = ArrayList<MosaicNode>()
+	internal var parent: MosaicNode? = null
+		private set
 	internal val foldedChildren: List<MosaicNode>
 		get() = mutableFoldedChildren
 	val children: List<MosaicNode>
@@ -158,9 +171,15 @@ internal class MosaicNode(
 		private set
 	private var owner: MosaicNodeOwner? = null
 	private var subcompositionsState: SubcomposeLayoutNodeState? = null
+	private var remeasurementModifiers: List<RemeasurementModifier> = emptyList()
+	private val modifierNodeChain = NodeChain(this)
+	private val remeasurement = object : Remeasurement {
+		override fun forceRemeasure() {
+			owner?.measureAndLayout(this@MosaicNode)
+		}
+	}
 
 	private val bottomLayer: MosaicNodeLayer = BottomLayer(this)
-	private val focusTargets = mutableListOf<FocusTargetHandle>()
 	private val focusScopes = mutableListOf<FocusScopeHandle>()
 	private val focusRequesterNodes = mutableListOf<FocusRequesterNode>()
 	private val focusEventNodes = mutableListOf<FocusEventNode>()
@@ -179,8 +198,14 @@ internal class MosaicNode(
 	internal val isAttached: Boolean
 		get() = owner != null
 
-	internal fun attachRoot(onTreeChange: () -> Unit) {
-		attach(MosaicNodeOwner(onTreeChange))
+	internal val modifierNodeTail: Modifier.Node?
+		get() = modifierNodeChain.tail
+
+	internal val modifierNodeCoroutineContext: CoroutineContext
+		get() = checkNotNull(owner) { "Mosaic node is detached" }.coroutineContext
+
+	internal fun attachRoot(owner: MosaicNodeOwner) {
+		attach(owner)
 	}
 
 	private fun attach(owner: MosaicNodeOwner) {
@@ -188,18 +213,22 @@ internal class MosaicNode(
 			"Mosaic node is already attached"
 		}
 		this.owner = owner
+		modifierNodeChain.attach()
 		for (child in mutableFoldedChildren) {
 			child.attach(owner)
 		}
+		notifyRemeasurementModifiers()
 	}
 
 	internal fun requestRelayout() {
-		owner?.onTreeChange()
+		owner?.onRequestRelayout(this)
 	}
 
 	internal fun insertAt(index: Int, instance: MosaicNode) {
 		check(!instance.isAttached) { "Cannot insert an attached Mosaic node" }
+		check(instance.parent == null) { "Cannot insert a Mosaic node which already has a parent" }
 		mutableFoldedChildren.add(index, instance)
+		instance.parent = this
 		owner?.let(instance::attach)
 	}
 
@@ -208,6 +237,7 @@ internal class MosaicNode(
 		for (childIndex in index + count - 1 downTo index) {
 			val child = mutableFoldedChildren[childIndex]
 			child.detachFromTree()
+			child.parent = null
 			mutableFoldedChildren.removeAt(childIndex)
 		}
 	}
@@ -257,11 +287,13 @@ internal class MosaicNode(
 		for (child in mutableFoldedChildren.toList().asReversed()) {
 			child.detachFromTree()
 		}
+		modifierNodeChain.detach()
 		owner = null
 	}
 
 	override fun onReuse() {
 		subcompositionsState?.onReuse()
+		modifierNodeChain.reset()
 		isDeactivated = false
 	}
 
@@ -275,7 +307,9 @@ internal class MosaicNode(
 	}
 
 	fun setModifier(modifier: Modifier) {
-		var focusTargetIndex = 0
+		modifierNodeChain.updateFrom(modifier)
+		var modifierElementIndex = modifierNodeChain.lastElementIndex
+		val updatedRemeasurementModifiers = mutableListOf<RemeasurementModifier>()
 		var focusScopeIndex = 0
 		var focusRequesterIndex = 0
 		var focusEventIndex = 0
@@ -284,6 +318,7 @@ internal class MosaicNode(
 		var onPlacedIndex = 0
 		topLayer = modifier.foldOut(bottomLayer) { element, nextLayer ->
 			var nextLayer = nextLayer
+			val elementIndex = modifierElementIndex--
 			// The Modifier class can inherit from several key Modifier types
 			// with different processing logic.
 			if (element is LayoutModifier) {
@@ -298,13 +333,11 @@ internal class MosaicNode(
 			if (element is KeyModifier) {
 				nextLayer = KeyLayer(element, nextLayer)
 			}
-			if (element is FocusTargetModifier) {
-				val handle = focusTargets.getOrNull(focusTargetIndex)
-					?: FocusTargetHandle().also(focusTargets::add)
-				focusTargetIndex++
-				handle.enabled = element.enabled
-				handle.autoFocus = element.autoFocus
-				nextLayer = FocusTargetLayer(handle, nextLayer)
+			if (element is ModifierNodeElement<*>) {
+				nextLayer = ModifierNodeLayer(
+					node = modifierNodeChain.requireNodeAt(elementIndex),
+					next = nextLayer,
+				)
 			}
 			if (element is FocusScopeModifier) {
 				val handle = focusScopes.getOrNull(focusScopeIndex)
@@ -352,6 +385,9 @@ internal class MosaicNode(
 				handle.element = element
 				nextLayer = OnPlacedLayer(handle, nextLayer)
 			}
+			if (element is RemeasurementModifier) {
+				updatedRemeasurementModifiers += element
+			}
 			if (element is ParentDataModifier) {
 				parentData = element.modifyParentData(parentData)
 			}
@@ -360,13 +396,21 @@ internal class MosaicNode(
 			}
 			nextLayer
 		}
-		focusTargets.subList(focusTargetIndex, focusTargets.size).clear()
+		check(modifierElementIndex == -1)
 		focusScopes.subList(focusScopeIndex, focusScopes.size).clear()
 		focusRequesterNodes.subList(focusRequesterIndex, focusRequesterNodes.size).clear()
 		focusEventNodes.subList(focusEventIndex, focusEventNodes.size).clear()
 		pointerInputNodes.subList(pointerInputIndex, pointerInputNodes.size).clear()
 		pointerHoverNodes.subList(pointerHoverIndex, pointerHoverNodes.size).clear()
 		onPlacedHandles.subList(onPlacedIndex, onPlacedHandles.size).clear()
+		remeasurementModifiers = updatedRemeasurementModifiers
+		if (isAttached) notifyRemeasurementModifiers()
+	}
+
+	private fun notifyRemeasurementModifiers() {
+		for (remeasurementModifier in remeasurementModifiers) {
+			remeasurementModifier.onRemeasurementAvailable(remeasurement)
+		}
 	}
 
 	override fun measure(constraints: Constraints): Placeable = topLayer.apply { measure(constraints) }
@@ -563,13 +607,37 @@ private class KeyLayer(
 	}
 }
 
-private class FocusTargetLayer(
-	private val handle: FocusTargetHandle,
+private class ModifierNodeLayer(
+	private val node: Modifier.Node,
 	override val next: MosaicNodeLayer,
 ) : MosaicNodeLayer() {
+	override fun placeAt(x: Int, y: Int) {
+		super.placeAt(x, y)
+		val coordinates = layoutCoordinates()
+		val existingCoordinates = node.layoutCoordinates
+		if (existingCoordinates == null) {
+			node.layoutCoordinates = coordinates
+		} else {
+			existingCoordinates.update(coordinates.position, coordinates.size)
+		}
+	}
+
 	override fun collectFocus(collector: FocusTreeCollector) {
-		collector.visitFocusTarget(handle, focusBounds()) {
-			next.collectFocus(collector)
+		val collectNode = {
+			val focusTarget = node as? FocusTargetNode
+			if (focusTarget == null) {
+				next.collectFocus(collector)
+			} else {
+				collector.visitFocusTarget(focusTarget, focusBounds()) {
+					next.collectFocus(collector)
+				}
+			}
+		}
+		val beyondBoundsProvider = node as? BeyondBoundsLayoutProviderModifierNode
+		if (beyondBoundsProvider == null) {
+			collectNode()
+		} else {
+			collector.visitBeyondBoundsLayout(beyondBoundsProvider.beyondBoundsLayout, collectNode)
 		}
 	}
 }
@@ -628,8 +696,8 @@ private fun MosaicNodeLayer.focusBounds(): FocusBounds = FocusBounds(
 	size = IntSize(width, height),
 )
 
-private fun MosaicNodeLayer.clipBounds(): ClipBounds = ClipBounds.from(
-	position = IntOffset(x, y),
+private fun MosaicNodeLayer.clipBounds(): IntRect = IntRect(
+	offset = IntOffset(x, y),
 	size = IntSize(width, height),
 )
 
