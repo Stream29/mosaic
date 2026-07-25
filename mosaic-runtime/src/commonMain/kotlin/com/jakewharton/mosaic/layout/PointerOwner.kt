@@ -68,6 +68,13 @@ internal class PointerOwner {
 internal class PointerTreeCollector {
 	private val entries = mutableListOf<PointerEntry>()
 	private val path = mutableListOf<PointerEntry>()
+	private val clipStack = mutableListOf<ClipBounds>()
+
+	fun visitClip(bounds: ClipBounds, block: () -> Unit) {
+		clipStack += clipStack.lastOrNull()?.intersect(bounds) ?: bounds
+		block()
+		clipStack.removeAt(clipStack.lastIndex)
+	}
 
 	fun visitPointerInput(
 		node: PointerInputNode,
@@ -96,6 +103,7 @@ internal class PointerTreeCollector {
 			node = node,
 			coordinates = coordinates,
 			parent = path.lastOrNull(),
+			clipBounds = clipStack.lastOrNull(),
 		)
 		entries += entry
 		path += entry
@@ -112,7 +120,7 @@ internal class PointerTree(
 	fun entry(node: PointerNode): PointerEntry? = entriesByNode[node]
 
 	fun hitPath(position: IntOffset): List<PointerEntry> {
-		val target = entries.lastOrNull { it.coordinates.contains(position) } ?: return emptyList()
+		val target = entries.lastOrNull { it.contains(position) } ?: return emptyList()
 		return target.pathFromRoot()
 	}
 
@@ -123,10 +131,14 @@ internal class PointerTree(
 	}
 }
 
+/**
+ * @property clipBounds `null` means that no clipping modifier encloses this pointer target.
+ */
 internal class PointerEntry(
 	val node: PointerNode,
 	val coordinates: LayoutCoordinates,
 	val parent: PointerEntry?,
+	val clipBounds: ClipBounds?,
 )
 
 /** @return the input node which consumed [event], or `null` when it remained unconsumed. */
@@ -174,6 +186,9 @@ private fun List<PointerEntry>.commonNodePrefixSize(other: List<PointerEntry>): 
 
 private fun LayoutCoordinates.contains(position: IntOffset): Boolean = position.x in this.position.x until this.position.x + size.width &&
 	position.y in this.position.y until this.position.y + size.height
+
+private fun PointerEntry.contains(position: IntOffset): Boolean = coordinates.contains(position) &&
+	(clipBounds?.contains(position.x, position.y) != false)
 
 private fun PointerEvent.localTo(origin: IntOffset): PointerEvent = PointerEvent(
 	position = IntOffset(position.x - origin.x, position.y - origin.y),

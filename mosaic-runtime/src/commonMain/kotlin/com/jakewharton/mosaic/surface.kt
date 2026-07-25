@@ -1,5 +1,6 @@
 package com.jakewharton.mosaic
 
+import com.jakewharton.mosaic.layout.ClipBounds
 import com.jakewharton.mosaic.terminal.AnsiLevel
 import com.jakewharton.mosaic.ui.Color
 import com.jakewharton.mosaic.ui.TextStyle
@@ -34,7 +35,20 @@ internal class TextSurface(
 	var translationX = 0
 	var translationY = 0
 
+	/** `null` means that no explicit clipping modifier is active and bounds remain strict. */
+	private var clipBounds: ClipBounds? = null
+
 	private val cells = Array(width * height) { TextPixel(" ") }
+
+	fun <T> withClip(bounds: ClipBounds, block: () -> T): T {
+		val previousBounds = clipBounds
+		clipBounds = (previousBounds ?: ClipBounds(0, 0, width, height)).intersect(bounds)
+		return try {
+			block()
+		} finally {
+			clipBounds = previousBounds
+		}
+	}
 
 	operator fun get(row: Int, column: Int): TextPixel {
 		val x = translationX + column
@@ -70,6 +84,38 @@ internal class TextSurface(
 		return leader
 	}
 
+	/**
+	 * Replaces one complete terminal text cluster without modifying cells outside the active clip.
+	 *
+	 * The replacement cluster and every existing cluster it would clear must be wholly contained by
+	 * the active clipping bounds. Without an active clip, this delegates to [replaceText] and retains
+	 * its strict bounds checks.
+	 *
+	 * @return the replacement cluster's leader, or `null` when the replacement would cross the clip
+	 * boundary or clear part of an existing cluster outside it. A `null` result leaves the surface
+	 * unchanged.
+	 */
+	fun replaceTextWithinClipOrNull(
+		row: Int,
+		column: Int,
+		text: String,
+		cellWidth: Int,
+	): TextPixel? {
+		val bounds = clipBounds ?: return replaceText(row, column, text, cellWidth)
+		val y = translationY + row
+		if (!bounds.contains(translationX + column, y, cellWidth, 1)) return null
+		for (offset in 0 until cellWidth) {
+			val targetColumn = column + offset
+			val pixel = get(row, targetColumn)
+			val leaderColumn = targetColumn - pixel.continuationOffset
+			val leader = get(row, leaderColumn)
+			if (!bounds.contains(translationX + leaderColumn, y, leader.cellWidth.coerceAtLeast(1), 1)) {
+				return null
+			}
+		}
+		return replaceText(row, column, text, cellWidth)
+	}
+
 	fun textLeaderAt(row: Int, column: Int): TextPixel {
 		val pixel = get(row, column)
 		return if (pixel.isContinuation) {
@@ -77,6 +123,24 @@ internal class TextSurface(
 		} else {
 			pixel
 		}
+	}
+
+	/**
+	 * @return the complete cluster's leader, or `null` when the addressed cell or any part of its
+	 * cluster lies outside the active clip. Without an active clip, this delegates to [textLeaderAt].
+	 */
+	fun textLeaderAtOrNull(row: Int, column: Int): TextPixel? {
+		val bounds = clipBounds ?: return textLeaderAt(row, column)
+		val x = translationX + column
+		val y = translationY + row
+		if (!bounds.contains(x, y)) return null
+		val pixel = get(row, column)
+		val leaderColumn = column - pixel.continuationOffset
+		val leader = get(row, leaderColumn)
+		if (!bounds.contains(translationX + leaderColumn, y, leader.cellWidth.coerceAtLeast(1), 1)) {
+			return null
+		}
+		return leader
 	}
 
 	private fun clearTextAt(row: Int, column: Int) {

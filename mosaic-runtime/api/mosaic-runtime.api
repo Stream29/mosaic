@@ -146,6 +146,10 @@ public final class com/jakewharton/mosaic/layout/BackgroundKt {
 	public static final fun background-fCupJr8 (Lcom/jakewharton/mosaic/modifier/Modifier;I)Lcom/jakewharton/mosaic/modifier/Modifier;
 }
 
+public final class com/jakewharton/mosaic/layout/ClipKt {
+	public static final fun clipToBounds (Lcom/jakewharton/mosaic/modifier/Modifier;)Lcom/jakewharton/mosaic/modifier/Modifier;
+}
+
 public abstract interface class com/jakewharton/mosaic/layout/ContentDrawScope : com/jakewharton/mosaic/layout/DrawScope {
 	public abstract fun drawContent ()V
 }

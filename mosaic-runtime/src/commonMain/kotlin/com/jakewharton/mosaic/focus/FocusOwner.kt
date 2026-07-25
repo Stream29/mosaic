@@ -1,6 +1,7 @@
 package com.jakewharton.mosaic.focus
 
 import com.jakewharton.mosaic.TerminalCursorPosition
+import com.jakewharton.mosaic.layout.ClipBounds
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.KeyModifier
 import com.jakewharton.mosaic.ui.unit.IntOffset
@@ -287,8 +288,17 @@ internal class FocusTreeCollector {
 	private val targetStack = mutableListOf<FocusTargetDraft>()
 	private val requesterStack = mutableListOf<FocusRequesterDraft>()
 	private val eventStack = mutableListOf<FocusEventDraft>()
-	private val cursorPositions = mutableListOf<TerminalCursorPosition>()
+
+	/** A `null` entry means the corresponding cursor lies outside the current clipping bounds. */
+	private val cursorPositions = mutableListOf<TerminalCursorPosition?>()
+	private val clipStack = mutableListOf<ClipBounds>()
 	private var nextOrder = 0
+
+	fun visitClip(bounds: ClipBounds, block: () -> Unit) {
+		clipStack += clipStack.lastOrNull()?.intersect(bounds) ?: bounds
+		block()
+		clipStack.removeAt(clipStack.lastIndex)
+	}
 
 	fun visitKeyModifier(modifier: KeyModifier, block: () -> Unit) {
 		targetStack.lastOrNull()?.keyModifiers?.add(modifier)
@@ -306,10 +316,16 @@ internal class FocusTreeCollector {
 			block()
 			return
 		}
+		val clipBounds = clipStack.lastOrNull()
+		val visibleBounds = if (clipBounds == null) bounds else bounds.clipTo(clipBounds)
+		if (visibleBounds == null) {
+			block()
+			return
+		}
 		recordFocusBoundary(handle)
 		val draft = FocusTargetDraft(
 			handle = handle,
-			bounds = bounds,
+			bounds = visibleBounds,
 			scope = scopeStack.lastOrNull(),
 			parentFocusBoundary = focusBoundaryStack.lastOrNull(),
 			order = nextOrder++,
@@ -333,10 +349,16 @@ internal class FocusTreeCollector {
 			block()
 			return
 		}
+		val clipBounds = clipStack.lastOrNull()
+		val visibleBounds = if (clipBounds == null) bounds else bounds.clipTo(clipBounds)
+		if (visibleBounds == null) {
+			block()
+			return
+		}
 		recordFocusBoundary(handle)
 		val scope = FocusScopeEntry(
 			handle = handle,
-			bounds = bounds,
+			bounds = visibleBounds,
 			parent = scopeStack.lastOrNull(),
 			parentFocusBoundary = focusBoundaryStack.lastOrNull(),
 			order = nextOrder++,
@@ -376,8 +398,11 @@ internal class FocusTreeCollector {
 	}
 
 	fun visitFocusCursor(position: TerminalCursorPosition, block: () -> Unit) {
-		targetStack.lastOrNull()?.cursorPosition = position
-		cursorPositions += position
+		val visiblePosition = position.takeIf { cursor ->
+			clipStack.lastOrNull()?.contains(cursor.column, cursor.row) != false
+		}
+		targetStack.lastOrNull()?.cursorPosition = visiblePosition
+		cursorPositions += visiblePosition
 		block()
 		cursorPositions.removeAt(cursorPositions.lastIndex)
 	}
@@ -643,6 +668,18 @@ internal data class FocusBounds(
 		}
 		return 13 * majorAxisDistance * majorAxisDistance + minorAxisDistance * minorAxisDistance
 	}
+}
+
+private fun FocusBounds.clipTo(bounds: ClipBounds): FocusBounds? {
+	val intersection = ClipBounds.from(position, size).intersect(bounds)
+	if (!intersection.hasArea) return null
+	return FocusBounds(
+		position = IntOffset(intersection.left, intersection.top),
+		size = IntSize(
+			width = intersection.right - intersection.left,
+			height = intersection.bottom - intersection.top,
+		),
+	)
 }
 
 /**

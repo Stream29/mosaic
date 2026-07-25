@@ -292,6 +292,9 @@ internal class MosaicNode(
 			if (element is DrawModifier) {
 				nextLayer = DrawLayer(element, nextLayer)
 			}
+			if (element is ViewportClipModifier) {
+				nextLayer = ViewportClipLayer(nextLayer)
+			}
 			if (element is KeyModifier) {
 				nextLayer = KeyLayer(element, nextLayer)
 			}
@@ -523,6 +526,28 @@ private class DrawLayer(
 	}
 }
 
+private class ViewportClipLayer(
+	override val next: MosaicNodeLayer,
+) : MosaicNodeLayer() {
+	override fun drawTo(canvas: TextSurface) {
+		canvas.withClip(clipBounds()) {
+			next.drawTo(canvas)
+		}
+	}
+
+	override fun collectFocus(collector: FocusTreeCollector) {
+		collector.visitClip(clipBounds()) {
+			next.collectFocus(collector)
+		}
+	}
+
+	override fun collectPointer(collector: PointerTreeCollector) {
+		collector.visitClip(clipBounds()) {
+			next.collectPointer(collector)
+		}
+	}
+}
+
 private class KeyLayer(
 	private val element: KeyModifier,
 	override val next: MosaicNodeLayer,
@@ -599,6 +624,11 @@ private class FocusCursorLayer(
 }
 
 private fun MosaicNodeLayer.focusBounds(): FocusBounds = FocusBounds(
+	position = IntOffset(x, y),
+	size = IntSize(width, height),
+)
+
+private fun MosaicNodeLayer.clipBounds(): ClipBounds = ClipBounds.from(
 	position = IntOffset(x, y),
 	size = IntSize(width, height),
 )

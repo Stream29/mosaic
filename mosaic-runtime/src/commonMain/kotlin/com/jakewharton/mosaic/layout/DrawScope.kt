@@ -269,17 +269,18 @@ internal open class TextCanvasDrawScope(
 	) {
 		var characterColumn = column
 		for ((start, end, cellWidth) in text.terminalTextClusters()) {
-			val character = canvas.replaceText(
+			val character = canvas.replaceTextWithinClipOrNull(
 				row = row,
 				column = characterColumn,
 				text = text.substring(start, end),
 				cellWidth = cellWidth,
 			)
+			characterColumn += cellWidth
+			if (character == null) continue
 			character.updateTextPixel(foreground, background, textStyle, underlineStyle, underlineColor)
 			spanStylesProvider?.invoke(start, end)?.forEach {
 				character.updateTextPixel(it.color, it.background, it.textStyle, it.underlineStyle, it.underlineColor)
 			}
-			characterColumn += cellWidth
 		}
 	}
 
@@ -294,15 +295,15 @@ internal open class TextCanvasDrawScope(
 		underlineColor: Color = Color.Unspecified,
 	) {
 		val pixel = if (codePoint.isSpecifiedCodePoint) {
-			canvas.replaceText(
+			canvas.replaceTextWithinClipOrNull(
 				row = y,
 				column = x,
 				text = CodePoints.toChars(codePoint).concatToString(),
 				cellWidth = 1,
 			)
 		} else {
-			canvas.textLeaderAt(y, x)
-		}
+			canvas.textLeaderAtOrNull(y, x)
+		} ?: return
 		pixel.updateTextPixel(foreground, background, textStyle, underlineStyle, underlineColor)
 	}
 
