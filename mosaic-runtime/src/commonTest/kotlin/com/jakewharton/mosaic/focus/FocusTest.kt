@@ -15,6 +15,7 @@ import com.jakewharton.mosaic.cursorPosition
 import com.jakewharton.mosaic.layout.fillMaxWidth
 import com.jakewharton.mosaic.layout.offset
 import com.jakewharton.mosaic.layout.onKeyEvent
+import com.jakewharton.mosaic.layout.onPasteEvent
 import com.jakewharton.mosaic.layout.onPointerEvent
 import com.jakewharton.mosaic.layout.onPreviewKeyEvent
 import com.jakewharton.mosaic.layout.width
@@ -23,6 +24,7 @@ import com.jakewharton.mosaic.modifier.composed
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.ModifierShift
 import com.jakewharton.mosaic.terminal.MouseEvent
+import com.jakewharton.mosaic.terminal.PasteEvent
 import com.jakewharton.mosaic.testing.MosaicSnapshots
 import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.ui.Box
@@ -136,6 +138,34 @@ class FocusTest {
 			sendKeyEvent(KeyboardEvent('x'.code))
 			awaitSnapshot()
 			assertThat(events).isEqualTo(listOf("preview", "target", "bubble"))
+		}
+	}
+
+	@Test fun pastedTabDoesNotMoveFocus() = runTest {
+		var focused by mutableStateOf("")
+		var pasted by mutableStateOf("")
+
+		runMosaicTest {
+			setContentAndSnapshot {
+				Row {
+					FocusText(
+						label = "first:$pasted",
+						modifier = Modifier.onPasteEvent { event ->
+							pasted = event.text
+							true
+						},
+						onFocus = { focused = "first" },
+					)
+					FocusText("second", onFocus = { focused = "second" })
+				}
+			}
+			assertThat(focused).isEqualTo("first")
+
+			sendPasteEvent(PasteEvent("\t"))
+			awaitSnapshot()
+
+			assertThat(pasted).isEqualTo("\t")
+			assertThat(focused).isEqualTo("first")
 		}
 	}
 

@@ -278,12 +278,16 @@ public final class com/jakewharton/mosaic/layout/KeyEvent {
 
 public abstract interface class com/jakewharton/mosaic/layout/KeyModifier : com/jakewharton/mosaic/modifier/Modifier$Element {
 	public abstract fun onKeyEvent (Lcom/jakewharton/mosaic/layout/KeyEvent;)Z
+	public fun onPasteEvent (Lcom/jakewharton/mosaic/terminal/PasteEvent;)Z
 	public abstract fun onPreKeyEvent (Lcom/jakewharton/mosaic/layout/KeyEvent;)Z
+	public fun onPrePasteEvent (Lcom/jakewharton/mosaic/terminal/PasteEvent;)Z
 }
 
 public final class com/jakewharton/mosaic/layout/KeyModifierKt {
 	public static final fun onKeyEvent (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun onPasteEvent (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
 	public static final fun onPreviewKeyEvent (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun onPreviewPasteEvent (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
 }
 
 public final class com/jakewharton/mosaic/layout/LayoutCoordinates {

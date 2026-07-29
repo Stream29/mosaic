@@ -6,6 +6,7 @@ import com.jakewharton.mosaic.Mosaic
 import com.jakewharton.mosaic.terminal.AnsiLevel
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.MouseEvent
+import com.jakewharton.mosaic.terminal.PasteEvent
 import com.jakewharton.mosaic.terminal.Terminal
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
@@ -50,6 +51,7 @@ public interface TestMosaic<T> : Mosaic {
 
 	public fun sendKeyEvent(keyEvent: KeyboardEvent)
 	public fun sendMouseEvent(mouseEvent: MouseEvent)
+	public fun sendPasteEvent(pasteEvent: PasteEvent)
 	public val state: TestTerminal.State
 }
 
@@ -109,6 +111,10 @@ private class RealTestMosaic<T>(
 
 	override fun sendMouseEvent(mouseEvent: MouseEvent) {
 		testTerminal.events.trySend(mouseEvent)
+	}
+
+	override fun sendPasteEvent(pasteEvent: PasteEvent) {
+		testTerminal.events.trySend(pasteEvent)
 	}
 
 	override fun draw() = mosaic.draw()

@@ -473,6 +473,17 @@ final class com.jakewharton.mosaic.terminal/PaletteColorEvent : com.jakewharton.
     final fun toString(): kotlin/String // com.jakewharton.mosaic.terminal/PaletteColorEvent.toString|toString(){}[0]
 }
 
+final class com.jakewharton.mosaic.terminal/PasteEvent : com.jakewharton.mosaic.terminal/Event { // com.jakewharton.mosaic.terminal/PasteEvent|null[0]
+    constructor <init>(kotlin/String) // com.jakewharton.mosaic.terminal/PasteEvent.<init>|<init>(kotlin.String){}[0]
+
+    final val text // com.jakewharton.mosaic.terminal/PasteEvent.text|{}text[0]
+        final fun <get-text>(): kotlin/String // com.jakewharton.mosaic.terminal/PasteEvent.text.<get-text>|<get-text>(){}[0]
+
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.jakewharton.mosaic.terminal/PasteEvent.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.jakewharton.mosaic.terminal/PasteEvent.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.jakewharton.mosaic.terminal/PasteEvent.toString|toString(){}[0]
+}
+
 final class com.jakewharton.mosaic.terminal/PrimaryDeviceAttributesEvent : com.jakewharton.mosaic.terminal/Event { // com.jakewharton.mosaic.terminal/PrimaryDeviceAttributesEvent|null[0]
     constructor <init>(kotlin/Int, kotlin/String) // com.jakewharton.mosaic.terminal/PrimaryDeviceAttributesEvent.<init>|<init>(kotlin.Int;kotlin.String){}[0]
 

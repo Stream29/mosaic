@@ -101,6 +101,12 @@ public class BracketedPasteEvent(
 	public val start: Boolean,
 ) : Event
 
+/** Text received as one bracketed-paste operation. */
+@Poko
+public class PasteEvent(
+	public val text: String,
+) : Event
+
 @Poko
 public class PrimaryDeviceAttributesEvent(
 	public val id: Int,

@@ -123,6 +123,7 @@ public suspend fun Tty.asTerminalIn(
 	var initialCursorVisible: Boolean? = null
 	// Each toggle becomes true when its feature is recognized and changed for this session.
 	var toggleFocus = false
+	var bracketedPasteModeEnabled = false
 	var kittyKeyboardPushed = false
 	var modifyOtherKeysEnabled = false
 	var toggleMouseEvents = false
@@ -137,6 +138,7 @@ public suspend fun Tty.asTerminalIn(
 		withFinalizationHook(
 			hook = {
 				setCallback(null)
+				if (bracketedPasteModeEnabled) write(bracketedPasteDisable)
 				if (kittyKeyboardPushed) write(kittyKeyboardPop)
 				if (modifyOtherKeysEnabled) write(modifyOtherKeysReset)
 				if (toggleSystemTheme) write(systemThemeDisable)
@@ -167,6 +169,8 @@ public suspend fun Tty.asTerminalIn(
 		write(alternateScreenEnable)
 	}
 
+	write(bracketedPasteEnable)
+	bracketedPasteModeEnabled = true
 	write("${CSI}0c")
 	val debugBootstrap = env("MOSAIC_TTY_TERMINAL_DEBUG") == "true"
 	var stage = StageDeviceAttributes
@@ -188,8 +192,10 @@ public suspend fun Tty.asTerminalIn(
 	var themeEvents = false
 
 	val bootstrapDone = CompletableDeferred<Unit>()
+	val parser = EventParser(this@asTerminalIn).apply {
+		bracketedPasteEnabled = true
+	}
 	scope.launch(Dispatchers.IO) {
-		val parser = EventParser(this@asTerminalIn)
 		while (true) {
 			val event = parser.next() ?: break
 			if (stage != StageNormalOperation && debugBootstrap) {

@@ -2,6 +2,7 @@ package com.jakewharton.mosaic.layout
 
 import androidx.compose.runtime.Immutable
 import com.jakewharton.mosaic.modifier.Modifier
+import com.jakewharton.mosaic.terminal.PasteEvent
 import dev.drewhamilton.poko.Poko
 
 public interface KeyModifier : Modifier.Element {
@@ -20,6 +21,16 @@ public interface KeyModifier : Modifier.Element {
 	 * return false, the key event will be sent to this [KeyModifier]'s parent.
 	 */
 	public fun onKeyEvent(event: KeyEvent): Boolean
+
+	/**
+	 * This function is called when a [PasteEvent] is received by this node during the downward pass.
+	 */
+	public fun onPrePasteEvent(event: PasteEvent): Boolean = false
+
+	/**
+	 * This function is called when a [PasteEvent] is received by this node during the upward pass.
+	 */
+	public fun onPasteEvent(event: PasteEvent): Boolean = false
 }
 
 @[Immutable Poko]
@@ -42,7 +53,7 @@ public class KeyEvent(
  */
 public fun Modifier.onPreviewKeyEvent(
 	onPreviewKeyEvent: (event: KeyEvent) -> Boolean,
-): Modifier = this then KeyModifierElement(onPreviewKeyEvent, null)
+): Modifier = this then KeyModifierElement(onPreKey = onPreviewKeyEvent)
 
 /**
  * Adding this [modifier][Modifier] to the [modifier][Modifier] parameter of a component will allow
@@ -54,12 +65,32 @@ public fun Modifier.onPreviewKeyEvent(
  */
 public fun Modifier.onKeyEvent(
 	onKeyEvent: (event: KeyEvent) -> Boolean,
-): Modifier = this then KeyModifierElement(null, onKeyEvent)
+): Modifier = this then KeyModifierElement(onKey = onKeyEvent)
+
+/**
+ * Adding this [modifier][Modifier] to the [modifier][Modifier] parameter of a component will allow
+ * it to intercept pasted text before it reaches a focused descendant.
+ */
+public fun Modifier.onPreviewPasteEvent(
+	onPreviewPasteEvent: (event: PasteEvent) -> Boolean,
+): Modifier = this then KeyModifierElement(onPrePaste = onPreviewPasteEvent)
+
+/**
+ * Adding this [modifier][Modifier] to the [modifier][Modifier] parameter of a component will allow
+ * it to intercept pasted text.
+ */
+public fun Modifier.onPasteEvent(
+	onPasteEvent: (event: PasteEvent) -> Boolean,
+): Modifier = this then KeyModifierElement(onPaste = onPasteEvent)
 
 private class KeyModifierElement(
-	val onPreEvent: ((KeyEvent) -> Boolean)?,
-	val onEvent: ((KeyEvent) -> Boolean)?,
+	val onPreKey: ((KeyEvent) -> Boolean)? = null,
+	val onKey: ((KeyEvent) -> Boolean)? = null,
+	val onPrePaste: ((PasteEvent) -> Boolean)? = null,
+	val onPaste: ((PasteEvent) -> Boolean)? = null,
 ) : KeyModifier {
-	override fun onPreKeyEvent(event: KeyEvent) = onPreEvent?.invoke(event) ?: false
-	override fun onKeyEvent(event: KeyEvent) = onEvent?.invoke(event) ?: false
+	override fun onPreKeyEvent(event: KeyEvent) = onPreKey?.invoke(event) ?: false
+	override fun onKeyEvent(event: KeyEvent) = onKey?.invoke(event) ?: false
+	override fun onPrePasteEvent(event: PasteEvent) = onPrePaste?.invoke(event) ?: false
+	override fun onPasteEvent(event: PasteEvent) = onPaste?.invoke(event) ?: false
 }

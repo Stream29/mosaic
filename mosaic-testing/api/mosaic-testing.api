@@ -15,6 +15,7 @@ public abstract interface class com/jakewharton/mosaic/testing/TestMosaic : com/
 	public abstract fun getState ()Lcom/jakewharton/mosaic/testing/TestTerminal$State;
 	public abstract fun sendKeyEvent (Lcom/jakewharton/mosaic/terminal/KeyboardEvent;)V
 	public abstract fun sendMouseEvent (Lcom/jakewharton/mosaic/terminal/MouseEvent;)V
+	public abstract fun sendPasteEvent (Lcom/jakewharton/mosaic/terminal/PasteEvent;)V
 	public abstract fun setContentAndSnapshot (Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
 }
 

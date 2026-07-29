@@ -8,8 +8,8 @@ import kotlinx.io.bytestring.encodeToByteString
 class TtyTerminalTest {
 	@Test fun worksEvenWithoutReply() = terminalTest {
 		val teardown = withTerminal { setup ->
-			assertThat(setup).isEqualTo(("${CSI}0c" + modifyOtherKeysEnable).encodeToByteString())
+			assertThat(setup).isEqualTo((bracketedPasteEnable + "${CSI}0c" + modifyOtherKeysEnable).encodeToByteString())
 		}
-		assertThat(teardown).isEqualTo(modifyOtherKeysReset.encodeToByteString())
+		assertThat(teardown).isEqualTo((bracketedPasteDisable + modifyOtherKeysReset).encodeToByteString())
 	}
 }

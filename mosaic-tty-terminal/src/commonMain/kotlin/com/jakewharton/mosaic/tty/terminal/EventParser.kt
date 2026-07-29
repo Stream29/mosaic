@@ -16,6 +16,7 @@ import com.jakewharton.mosaic.terminal.KittyPointerQuerySupportEvent
 import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.terminal.OperatingStatusResponseEvent
 import com.jakewharton.mosaic.terminal.PaletteColorEvent
+import com.jakewharton.mosaic.terminal.PasteEvent
 import com.jakewharton.mosaic.terminal.PrimaryDeviceAttributesEvent
 import com.jakewharton.mosaic.terminal.ResizeEvent
 import com.jakewharton.mosaic.terminal.SecondaryDeviceAttributesEvent
@@ -35,11 +36,14 @@ public class EventParser(
 	private companion object {
 		private const val BufferSize = 8 * 1024
 		private const val BareEscapeDisambiguationReadTimeoutMillis = 100
+		private val BracketedPasteStart = "$ESC[200~".encodeToByteArray()
+		private val BracketedPasteEnd = "$ESC[201~".encodeToByteArray()
 	}
 
 	private val buffer = ByteArray(BufferSize)
 	private var offset = 0
 	private var limit = 0
+	private var bracketedPaste: PasteBuffer? = null
 
 	/**
 	 * Return a copy of any buffered data.
@@ -47,7 +51,19 @@ public class EventParser(
 	 * If a call to [next] was interrupted and parsing will not continue, this can be used to
 	 * ensure any bytes which were already buffered are not lost.
 	 */
-	public fun copyBuffer(): ByteArray = buffer.copyOfRange(offset, limit)
+	public fun copyBuffer(): ByteArray {
+		val paste = bracketedPaste ?: return buffer.copyOfRange(offset, limit)
+		return paste.copyWith(BracketedPasteStart, buffer, offset, limit)
+	}
+
+	/**
+	 * Indicate whether terminal bracketed paste mode is enabled.
+	 *
+	 * When enabled, a matching `CSI 200~` / `CSI 201~` pair is delivered as one [PasteEvent]
+	 * instead of separate [BracketedPasteEvent] boundary events.
+	 */
+	@Volatile
+	public var bracketedPasteEnabled: Boolean = false
 
 	/**
 	 * Indicate whether Kitty's
@@ -90,7 +106,10 @@ public class EventParser(
 		offset = 0
 
 		val event = next() ?: return null
-		val bytes = buffer.copyOfRange(0, offset)
+		val bytes = when (event) {
+			is PasteEvent -> bracketedPasteBytes(event.text)
+			else -> buffer.copyOfRange(0, offset)
+		}
 		return DebugEvent(event, bytes)
 	}
 
@@ -108,8 +127,16 @@ public class EventParser(
 
 		while (true) {
 			if (offset < limit) {
-				tryParse(buffer, offset, limit)?.let { event ->
-					return event
+				if (bracketedPaste != null) {
+					tryParseBracketedPaste(buffer, offset, limit)?.let { event ->
+						return event
+					}
+				} else {
+					tryParse(buffer, offset, limit)?.let { event ->
+						return event
+					}
+					// A start marker may have left pasted text in the current buffer.
+					if (bracketedPaste != null && offset < limit) continue
 				}
 			}
 
@@ -148,6 +175,13 @@ public class EventParser(
 			limit += read
 		}
 
+		bracketedPaste?.let { paste ->
+			paste.append(buffer, offset, limit)
+			bracketedPaste = null
+			limit = 0
+			return UnknownEvent(paste.copyWith(BracketedPasteStart))
+		}
+
 		if (limit > 0) {
 			val bytes = buffer.copyOfRange(0, limit)
 			limit = 0
@@ -155,6 +189,24 @@ public class EventParser(
 		}
 
 		throw EofException()
+	}
+
+	private fun tryParseBracketedPaste(buffer: ByteArray, start: Int, limit: Int): Event? {
+		val paste = checkNotNull(bracketedPaste)
+		val endStart = buffer.indexOf(BracketedPasteEnd, start, limit)
+		if (endStart != -1) {
+			paste.append(buffer, start, endStart)
+			offset = endStart + BracketedPasteEnd.size
+			bracketedPaste = null
+			return PasteEvent(paste.decodeToString())
+		}
+
+		// Keep a possible prefix of the end marker for the next read.
+		val retain = minOf(BracketedPasteEnd.size - 1, limit - start)
+		val end = limit - retain
+		paste.append(buffer, start, end)
+		offset = end
+		return null
 	}
 
 	/**
@@ -283,27 +335,55 @@ public class EventParser(
 					val number = buffer.parseIntDigits(b3Index, delimiter, orElse = { break@error })
 					val codepoint = when (number) {
 						2 -> KeyboardEvent.Insert
+
 						3 -> KeyboardEvent.Delete
+
 						5 -> KeyboardEvent.PageUp
+
 						6 -> KeyboardEvent.PageDown
+
 						7 -> KeyboardEvent.Home
+
 						8 -> KeyboardEvent.End
+
 						11 -> KeyboardEvent.F1
+
 						12 -> KeyboardEvent.F2
+
 						13 -> KeyboardEvent.F3
+
 						14 -> KeyboardEvent.F4
+
 						15 -> KeyboardEvent.F5
+
 						17 -> KeyboardEvent.F6
+
 						18 -> KeyboardEvent.F7
+
 						19 -> KeyboardEvent.F8
+
 						20 -> KeyboardEvent.F9
+
 						21 -> KeyboardEvent.F10
+
 						23 -> KeyboardEvent.F11
+
 						24 -> KeyboardEvent.F12
+
 						27 -> return parseCsiXtermModifyOtherKeys(buffer, delimiter + 1, finalIndex) ?: break@error
-						200 -> return BracketedPasteEvent(start = true)
+
+						200 -> {
+							if (bracketedPasteEnabled) {
+								bracketedPaste = PasteBuffer()
+								return null
+							}
+							return BracketedPasteEvent(start = true)
+						}
+
 						201 -> return BracketedPasteEvent(start = false)
+
 						57427 -> KeyboardEvent.KpBegin
+
 						else -> break@error
 					}
 
@@ -975,4 +1055,57 @@ public class EventParser(
 		return handler(b3Index, stIndex)
 			?: UnknownEvent(buffer.copyOfRange(start, end))
 	}
+
+	private fun bracketedPasteBytes(text: String): ByteArray {
+		val body = text.encodeToByteArray()
+		return ByteArray(BracketedPasteStart.size + body.size + BracketedPasteEnd.size).also { bytes ->
+			BracketedPasteStart.copyInto(bytes)
+			body.copyInto(bytes, destinationOffset = BracketedPasteStart.size)
+			BracketedPasteEnd.copyInto(bytes, destinationOffset = BracketedPasteStart.size + body.size)
+		}
+	}
+}
+
+private class PasteBuffer {
+	private var bytes = ByteArray(0)
+	private var size = 0
+
+	fun append(source: ByteArray, start: Int, end: Int) {
+		if (start == end) return
+		val length = end - start
+		val required = size + length
+		check(required >= size) { "Bracketed paste is too large." }
+		if (required > bytes.size) {
+			bytes = bytes.copyOf(maxOf(required, maxOf(64, bytes.size * 2)))
+		}
+		source.copyInto(bytes, destinationOffset = size, startIndex = start, endIndex = end)
+		size = required
+	}
+
+	fun decodeToString(): String = bytes.decodeToString(0, size)
+
+	fun copyWith(
+		prefix: ByteArray,
+		suffix: ByteArray = ByteArray(0),
+		suffixStart: Int = 0,
+		suffixEnd: Int = suffix.size,
+	): ByteArray {
+		val result = ByteArray(prefix.size + size + suffixEnd - suffixStart)
+		prefix.copyInto(result)
+		bytes.copyInto(result, destinationOffset = prefix.size, endIndex = size)
+		suffix.copyInto(result, destinationOffset = prefix.size + size, startIndex = suffixStart, endIndex = suffixEnd)
+		return result
+	}
+}
+
+private fun ByteArray.indexOf(needle: ByteArray, start: Int, end: Int): Int {
+	val lastStart = end - needle.size
+	if (lastStart < start) return -1
+
+	for (candidate in start..lastStart) {
+		if (needle.indices.all { index -> this[candidate + index] == needle[index] }) {
+			return candidate
+		}
+	}
+	return -1
 }

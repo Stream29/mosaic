@@ -1,5 +1,5 @@
 // Klib ABI Dump
-// Targets: [linuxArm64, linuxX64, macosArm64, mingwX64]
+// Targets: [linuxArm64, linuxX64, mingwX64]
 // Rendering settings:
 // - Signature version: 2
 // - Show manifest properties: true
@@ -16,6 +16,7 @@ abstract interface <#A: kotlin/Any?> com.jakewharton.mosaic.testing/TestMosaic :
 
     abstract fun sendKeyEvent(com.jakewharton.mosaic.terminal/KeyboardEvent) // com.jakewharton.mosaic.testing/TestMosaic.sendKeyEvent|sendKeyEvent(com.jakewharton.mosaic.terminal.KeyboardEvent){}[0]
     abstract fun sendMouseEvent(com.jakewharton.mosaic.terminal/MouseEvent) // com.jakewharton.mosaic.testing/TestMosaic.sendMouseEvent|sendMouseEvent(com.jakewharton.mosaic.terminal.MouseEvent){}[0]
+    abstract fun sendPasteEvent(com.jakewharton.mosaic.terminal/PasteEvent) // com.jakewharton.mosaic.testing/TestMosaic.sendPasteEvent|sendPasteEvent(com.jakewharton.mosaic.terminal.PasteEvent){}[0]
     abstract fun setContentAndSnapshot(kotlin/Function2<androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>): #A // com.jakewharton.mosaic.testing/TestMosaic.setContentAndSnapshot|setContentAndSnapshot(kotlin.Function2<androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>){}[0]
     abstract suspend fun awaitSnapshot(kotlin.time/Duration = ...): #A // com.jakewharton.mosaic.testing/TestMosaic.awaitSnapshot|awaitSnapshot(kotlin.time.Duration){}[0]
 }

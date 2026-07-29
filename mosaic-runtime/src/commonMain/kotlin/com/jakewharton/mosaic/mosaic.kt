@@ -25,6 +25,7 @@ import com.jakewharton.mosaic.layout.PointerOwner
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.terminal.MouseTracking
+import com.jakewharton.mosaic.terminal.PasteEvent
 import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.terminal.TerminalScreen
 import com.jakewharton.mosaic.ui.BoxMeasurePolicy
@@ -366,6 +367,14 @@ internal class MosaicComposition(
 								if (!keyHandled && keyEvent == ctrlC) {
 									job.cancel()
 									return@withFrameNanos
+								}
+							}
+
+							is PasteEvent -> {
+								if (focusOwner.ownsKeyDispatch) {
+									focusOwner.dispatchPasteEvent(event)
+								} else {
+									rootNode.sendPasteEvent(event)
 								}
 							}
 

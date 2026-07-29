@@ -19,6 +19,7 @@ import com.jakewharton.mosaic.layout.Placeable.PlacementScope
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.node.ModifierNodeElement
 import com.jakewharton.mosaic.node.NodeChain
+import com.jakewharton.mosaic.terminal.PasteEvent
 import com.jakewharton.mosaic.ui.SubcomposeLayoutNodeState
 import com.jakewharton.mosaic.ui.unit.Constraints
 import com.jakewharton.mosaic.ui.unit.IntOffset
@@ -77,6 +78,10 @@ internal abstract class MosaicNodeLayer :
 
 	open fun sendKeyEvent(keyEvent: KeyEvent): Boolean {
 		return next?.sendKeyEvent(keyEvent) ?: false
+	}
+
+	open fun sendPasteEvent(pasteEvent: PasteEvent): Boolean {
+		return next?.sendPasteEvent(pasteEvent) ?: false
 	}
 
 	open fun collectFocus(collector: FocusTreeCollector) {
@@ -439,6 +444,10 @@ internal class MosaicNode(
 		return topLayer.sendKeyEvent(keyEvent)
 	}
 
+	fun sendPasteEvent(pasteEvent: PasteEvent): Boolean {
+		return topLayer.sendPasteEvent(pasteEvent)
+	}
+
 	fun collectFocusTree(): FocusTree {
 		val collector = FocusTreeCollector()
 		topLayer.collectFocus(collector)
@@ -490,6 +499,15 @@ private class BottomLayer(
 	override fun sendKeyEvent(keyEvent: KeyEvent): Boolean {
 		for (child in node.children) {
 			if (child.sendKeyEvent(keyEvent)) {
+				return true
+			}
+		}
+		return false
+	}
+
+	override fun sendPasteEvent(pasteEvent: PasteEvent): Boolean {
+		for (child in node.children) {
+			if (child.sendPasteEvent(pasteEvent)) {
 				return true
 			}
 		}
@@ -599,6 +617,10 @@ private class KeyLayer(
 	override fun sendKeyEvent(keyEvent: KeyEvent) = element.onPreKeyEvent(keyEvent) ||
 		next.sendKeyEvent(keyEvent) ||
 		element.onKeyEvent(keyEvent)
+
+	override fun sendPasteEvent(pasteEvent: PasteEvent) = element.onPrePasteEvent(pasteEvent) ||
+		next.sendPasteEvent(pasteEvent) ||
+		element.onPasteEvent(pasteEvent)
 
 	override fun collectFocus(collector: FocusTreeCollector) {
 		collector.visitKeyModifier(element) {

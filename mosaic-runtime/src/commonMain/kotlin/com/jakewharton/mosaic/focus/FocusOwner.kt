@@ -4,6 +4,7 @@ import com.jakewharton.mosaic.TerminalCursorPosition
 import com.jakewharton.mosaic.layout.BeyondBoundsLayout
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.KeyModifier
+import com.jakewharton.mosaic.terminal.PasteEvent
 import com.jakewharton.mosaic.ui.unit.IntOffset
 import com.jakewharton.mosaic.ui.unit.IntRect
 import com.jakewharton.mosaic.ui.unit.IntSize
@@ -165,6 +166,23 @@ internal class FocusOwner(
 			event.hasNoModifiers() && event.key == "ArrowDown" -> moveFocus(FocusDirection.Down)
 			else -> false
 		}
+	}
+
+	fun dispatchPasteEvent(event: PasteEvent): Boolean {
+		val keyPath = focusedTarget
+			?.let(tree::target)
+			?.keyModifiers
+			?: activeTrap?.keyModifiers
+			?: emptyList()
+
+		for (modifier in keyPath) {
+			if (modifier.onPrePasteEvent(event)) return true
+		}
+		for (index in keyPath.lastIndex downTo 0) {
+			if (keyPath[index].onPasteEvent(event)) return true
+		}
+
+		return false
 	}
 
 	private fun moveFocus(direction: FocusDirection): Boolean = when (direction) {

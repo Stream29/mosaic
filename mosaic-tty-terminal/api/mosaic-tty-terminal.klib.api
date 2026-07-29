@@ -1,5 +1,5 @@
 // Klib ABI Dump
-// Targets: [linuxArm64, linuxX64, macosArm64, mingwX64]
+// Targets: [linuxArm64, linuxX64, mingwX64]
 // Rendering settings:
 // - Signature version: 2
 // - Show manifest properties: true
@@ -13,6 +13,9 @@ final class com.jakewharton.mosaic.tty.terminal/EofException : kotlin/RuntimeExc
 final class com.jakewharton.mosaic.tty.terminal/EventParser { // com.jakewharton.mosaic.tty.terminal/EventParser|null[0]
     constructor <init>(com.jakewharton.mosaic.tty/Tty) // com.jakewharton.mosaic.tty.terminal/EventParser.<init>|<init>(com.jakewharton.mosaic.tty.Tty){}[0]
 
+    final var bracketedPasteEnabled // com.jakewharton.mosaic.tty.terminal/EventParser.bracketedPasteEnabled|{}bracketedPasteEnabled[0]
+        final fun <get-bracketedPasteEnabled>(): kotlin/Boolean // com.jakewharton.mosaic.tty.terminal/EventParser.bracketedPasteEnabled.<get-bracketedPasteEnabled>|<get-bracketedPasteEnabled>(){}[0]
+        final fun <set-bracketedPasteEnabled>(kotlin/Boolean) // com.jakewharton.mosaic.tty.terminal/EventParser.bracketedPasteEnabled.<set-bracketedPasteEnabled>|<set-bracketedPasteEnabled>(kotlin.Boolean){}[0]
     final var kittyDisambiguateEscapeCodes // com.jakewharton.mosaic.tty.terminal/EventParser.kittyDisambiguateEscapeCodes|{}kittyDisambiguateEscapeCodes[0]
         final fun <get-kittyDisambiguateEscapeCodes>(): kotlin/Boolean // com.jakewharton.mosaic.tty.terminal/EventParser.kittyDisambiguateEscapeCodes.<get-kittyDisambiguateEscapeCodes>|<get-kittyDisambiguateEscapeCodes>(){}[0]
         final fun <set-kittyDisambiguateEscapeCodes>(kotlin/Boolean) // com.jakewharton.mosaic.tty.terminal/EventParser.kittyDisambiguateEscapeCodes.<set-kittyDisambiguateEscapeCodes>|<set-kittyDisambiguateEscapeCodes>(kotlin.Boolean){}[0]

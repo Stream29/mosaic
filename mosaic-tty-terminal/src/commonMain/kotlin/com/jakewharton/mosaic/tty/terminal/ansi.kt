@@ -20,6 +20,10 @@ internal const val focusMode = 1004
 internal const val focusEnable = "$CSI?${focusMode}h"
 internal const val focusDisable = "$CSI?${focusMode}l"
 
+internal const val bracketedPasteMode = 2004
+internal const val bracketedPasteEnable = "$CSI?${bracketedPasteMode}h"
+internal const val bracketedPasteDisable = "$CSI?${bracketedPasteMode}l"
+
 internal const val mouseButtonEventMode = 1002
 
 internal const val mouseAnyEventMode = 1003

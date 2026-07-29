@@ -11,10 +11,10 @@ class TtyTerminalScreenTest {
 		expect("${CSI}0c", reply = "$CSI?1c")
 
 		val teardown = withTerminal(screen = TerminalScreen.Inline) { setup ->
-			assertThat(setup).isEqualTo(("${CSI}0c" + modifyOtherKeysEnable).encodeToByteString())
+			assertThat(setup).isEqualTo((bracketedPasteEnable + "${CSI}0c" + modifyOtherKeysEnable).encodeToByteString())
 		}
 
-		assertThat(teardown).isEqualTo(modifyOtherKeysReset.encodeToByteString())
+		assertThat(teardown).isEqualTo((bracketedPasteDisable + modifyOtherKeysReset).encodeToByteString())
 	}
 
 	@Test fun alternateScreenIsActivatedAndRestored() = terminalTest {
@@ -22,12 +22,12 @@ class TtyTerminalScreenTest {
 
 		val teardown = withTerminal(screen = TerminalScreen.Alternate) { setup ->
 			assertThat(setup).isEqualTo(
-				(alternateScreenEnable + "${CSI}0c" + modifyOtherKeysEnable).encodeToByteString(),
+				(alternateScreenEnable + bracketedPasteEnable + "${CSI}0c" + modifyOtherKeysEnable).encodeToByteString(),
 			)
 		}
 
 		assertThat(teardown).isEqualTo(
-			(modifyOtherKeysReset + alternateScreenDisable).encodeToByteString(),
+			(bracketedPasteDisable + modifyOtherKeysReset + alternateScreenDisable).encodeToByteString(),
 		)
 	}
 }
