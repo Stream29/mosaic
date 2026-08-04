@@ -27,5 +27,5 @@ import platform.posix.timespec
 internal actual inline fun nanoTime(): Long = memScoped {
 	val timespec = alloc<timespec>()
 	clock_gettime(CLOCK_MONOTONIC_RAW.convert(), timespec.ptr)
-	timespec.tv_sec * 1_000_000L + timespec.tv_nsec
+	timespecToNanos(timespec.tv_sec, timespec.tv_nsec)
 }
