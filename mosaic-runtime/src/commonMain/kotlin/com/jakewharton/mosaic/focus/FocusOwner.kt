@@ -140,7 +140,13 @@ internal class FocusOwner(
 			.asReversed()
 			.firstOrNull { target -> isEligible(target) && target.bounds.contains(position) }
 			?: return false
-		return select(target.handle)
+		// A pointer can only hit a target at its current laid-out position. Relocating a partially
+		// visible target after that hit would move the viewport underneath the pointer.
+		return select(
+			target = target.handle,
+			requestedEntry = target,
+			bringIntoView = false,
+		)
 	}
 
 	fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -384,6 +390,7 @@ internal class FocusOwner(
 	private fun select(
 		target: FocusTargetHandle?,
 		requestedEntry: FocusTargetEntry?,
+		bringIntoView: Boolean = true,
 	): Boolean {
 		val previousTarget = focusedTarget
 		focusedTarget = target
@@ -395,7 +402,9 @@ internal class FocusOwner(
 		if (entry != null && previousTarget !== target) {
 			check(entry.handle === target)
 			val requestedHandle = entry.handle
-			if (isReconciling) {
+			if (!bringIntoView) {
+				pendingBringIntoView = null
+			} else if (isReconciling) {
 				pendingBringIntoView = requestedHandle
 			} else {
 				pendingBringIntoView = null
