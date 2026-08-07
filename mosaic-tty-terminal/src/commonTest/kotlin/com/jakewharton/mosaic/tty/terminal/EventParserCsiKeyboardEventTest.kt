@@ -5,6 +5,7 @@ import assertk.assertions.isEqualTo
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.Down
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.End
+import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.F10
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.Home
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.KpBegin
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.Left
@@ -55,6 +56,27 @@ class EventParserCsiKeyboardEventTest : BaseEventParserTest() {
 	@Test fun home() {
 		testTerminal.write("${CSI}H")
 		assertThat(parser.next()).isEqualTo(KeyboardEvent(Home))
+	}
+
+	@Test fun f10() {
+		testTerminal.write("${CSI}21~")
+		assertThat(parser.next()).isEqualTo(KeyboardEvent(F10))
+	}
+
+	@Test fun modifierShiftF10() {
+		testTerminal.write("${CSI}21;2~")
+		assertThat(parser.next()).isEqualTo(KeyboardEvent(F10, modifiers = ModifierShift))
+	}
+
+	@Test fun modifierShiftF10Release() {
+		testTerminal.write("${CSI}21;2:3~")
+		assertThat(parser.next()).isEqualTo(
+			KeyboardEvent(
+				F10,
+				modifiers = ModifierShift,
+				eventType = KeyboardEvent.EventTypeRelease,
+			),
+		)
 	}
 
 	@Test fun modifierShiftUp() {

@@ -5,6 +5,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isTrue
 import com.jakewharton.mosaic.terminal.KeyboardEvent
+import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.F10
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.ModifierShift
 import kotlin.test.Test
 
@@ -22,6 +23,10 @@ class TtyTerminalKeyboardTest {
 			ptyWrite("${CSI}13;2u")
 			assertThat(events.receive()).isEqualTo(
 				KeyboardEvent(13, modifiers = ModifierShift),
+			)
+			ptyWrite("${CSI}21;2~")
+			assertThat(events.receive()).isEqualTo(
+				KeyboardEvent(F10, modifiers = ModifierShift),
 			)
 		}
 
