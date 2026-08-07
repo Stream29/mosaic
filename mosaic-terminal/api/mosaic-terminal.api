@@ -98,6 +98,7 @@ public final class com/jakewharton/mosaic/terminal/KeyboardEvent : com/jakewhart
 	public static final field Insert I
 	public static final field KpBegin I
 	public static final field Left I
+	public static final field Menu I
 	public static final field ModifierAlt I
 	public static final field ModifierCapsLock I
 	public static final field ModifierCtrl I

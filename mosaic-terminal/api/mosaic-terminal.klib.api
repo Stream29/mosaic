@@ -300,6 +300,8 @@ final class com.jakewharton.mosaic.terminal/KeyboardEvent : com.jakewharton.mosa
             final fun <get-KpBegin>(): kotlin/Int // com.jakewharton.mosaic.terminal/KeyboardEvent.Companion.KpBegin.<get-KpBegin>|<get-KpBegin>(){}[0]
         final const val Left // com.jakewharton.mosaic.terminal/KeyboardEvent.Companion.Left|{}Left[0]
             final fun <get-Left>(): kotlin/Int // com.jakewharton.mosaic.terminal/KeyboardEvent.Companion.Left.<get-Left>|<get-Left>(){}[0]
+        final const val Menu // com.jakewharton.mosaic.terminal/KeyboardEvent.Companion.Menu|{}Menu[0]
+            final fun <get-Menu>(): kotlin/Int // com.jakewharton.mosaic.terminal/KeyboardEvent.Companion.Menu.<get-Menu>|<get-Menu>(){}[0]
         final const val ModifierAlt // com.jakewharton.mosaic.terminal/KeyboardEvent.Companion.ModifierAlt|{}ModifierAlt[0]
             final fun <get-ModifierAlt>(): kotlin/Int // com.jakewharton.mosaic.terminal/KeyboardEvent.Companion.ModifierAlt.<get-ModifierAlt>|<get-ModifierAlt>(){}[0]
         final const val ModifierCapsLock // com.jakewharton.mosaic.terminal/KeyboardEvent.Companion.ModifierCapsLock|{}ModifierCapsLock[0]

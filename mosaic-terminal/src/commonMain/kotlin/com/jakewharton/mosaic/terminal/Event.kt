@@ -76,6 +76,7 @@ public class KeyboardEvent(
 		public const val KpBegin: Int = 57427
 		public const val End: Int = 57357
 		public const val Home: Int = 57356
+		public const val Menu: Int = 57363
 		public const val F1: Int = 57364
 		public const val F2: Int = 57365
 		public const val F3: Int = 57366

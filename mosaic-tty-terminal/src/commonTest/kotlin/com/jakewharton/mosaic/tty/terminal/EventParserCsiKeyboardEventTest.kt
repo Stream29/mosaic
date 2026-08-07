@@ -9,6 +9,7 @@ import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.F10
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.Home
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.KpBegin
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.Left
+import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.Menu
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.ModifierAlt
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.ModifierCapsLock
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.ModifierCtrl
@@ -77,6 +78,11 @@ class EventParserCsiKeyboardEventTest : BaseEventParserTest() {
 				eventType = KeyboardEvent.EventTypeRelease,
 			),
 		)
+	}
+
+	@Test fun menu() {
+		testTerminal.write("${CSI}29~")
+		assertThat(parser.next()).isEqualTo(KeyboardEvent(Menu))
 	}
 
 	@Test fun modifierShiftUp() {

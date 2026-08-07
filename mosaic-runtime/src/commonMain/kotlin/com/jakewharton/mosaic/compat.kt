@@ -25,6 +25,7 @@ internal fun KeyboardEvent.toKeyEventOrNull(): KeyEvent? {
 			57355 -> "PageDown"
 			57356 -> "Home"
 			57357 -> "End"
+			57363 -> "ContextMenu"
 			in 57364..57398 -> "F" + (codepoint - 57363)
 			in 0x20..0xd7ff -> codepoint.toChar().toString()
 			in 0xe000..0x10ffff -> CodePoints.toChars(codepoint).concatToString()

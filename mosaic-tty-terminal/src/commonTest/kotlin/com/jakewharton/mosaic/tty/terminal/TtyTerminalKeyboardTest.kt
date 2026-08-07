@@ -6,6 +6,7 @@ import assertk.assertions.isFalse
 import assertk.assertions.isTrue
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.F10
+import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.Menu
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.ModifierShift
 import kotlin.test.Test
 
@@ -28,6 +29,8 @@ class TtyTerminalKeyboardTest {
 			assertThat(events.receive()).isEqualTo(
 				KeyboardEvent(F10, modifiers = ModifierShift),
 			)
+			ptyWrite("${CSI}29~")
+			assertThat(events.receive()).isEqualTo(KeyboardEvent(Menu))
 		}
 
 		assertThat(teardown).contains(kittyKeyboardPop)

@@ -3,10 +3,16 @@ package com.jakewharton.mosaic.tty.terminal
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import com.jakewharton.mosaic.terminal.KeyboardEvent
+import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.Menu
 import com.jakewharton.mosaic.terminal.KeyboardEvent.Companion.ModifierShift
 import kotlin.test.Test
 
 class EventParserCsiKittyKeyboardEventTest : BaseEventParserTest() {
+	@Test fun menu() {
+		testTerminal.write("${CSI}${Menu}u")
+		assertThat(parser.next()).isEqualTo(KeyboardEvent(Menu))
+	}
+
 	@Test fun h() {
 		testTerminal.write("${CSI}104u")
 		assertThat(parser.next()).isEqualTo(

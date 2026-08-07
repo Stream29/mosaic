@@ -29,6 +29,11 @@ class CompatTest {
 			.isEqualTo(KeyEvent("ArrowLeft"))
 	}
 
+	@Test fun menuKeyUsesTheContextMenuName() {
+		assertThat(KeyboardEvent(KeyboardEvent.Menu).toKeyEventOrNull())
+			.isEqualTo(KeyEvent("ContextMenu"))
+	}
+
 	@Test fun nonPressEventsAreIgnored() {
 		assertThat(
 			KeyboardEvent(codepoint = 'a'.code, eventType = KeyboardEvent.EventTypeRepeat)

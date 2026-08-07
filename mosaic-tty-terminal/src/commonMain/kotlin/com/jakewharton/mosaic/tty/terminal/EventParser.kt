@@ -372,6 +372,8 @@ public class EventParser(
 
 						27 -> return parseCsiXtermModifyOtherKeys(buffer, delimiter + 1, finalIndex) ?: break@error
 
+						29 -> KeyboardEvent.Menu
+
 						200 -> {
 							if (bracketedPasteEnabled) {
 								bracketedPaste = PasteBuffer()
@@ -387,8 +389,32 @@ public class EventParser(
 						else -> break@error
 					}
 
-					// TODO parse rest of CSI ... ~
-					return KeyboardEvent(codepoint)
+					if (delimiter == finalIndex) {
+						return KeyboardEvent(codepoint)
+					}
+					val modifiersStart = delimiter + 1
+					val modifiersEnd = buffer.indexOfOrDefault(
+						':'.code.toByte(),
+						modifiersStart,
+						finalIndex,
+						finalIndex,
+					)
+					val modifiers = buffer.parseIntDigits(
+						modifiersStart,
+						modifiersEnd,
+						orElse = { break@error },
+					) - 1
+					if (modifiers < 0) break@error
+					val eventType = buffer.parseIntDigits(
+						modifiersEnd + 1,
+						finalIndex,
+						orElse = { KeyboardEvent.EventTypePress },
+					)
+					return KeyboardEvent(
+						codepoint,
+						modifiers = modifiers,
+						eventType = eventType,
+					)
 				}
 
 				'I'.code -> return FocusEvent(focused = true)
