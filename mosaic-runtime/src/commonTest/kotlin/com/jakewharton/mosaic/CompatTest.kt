@@ -24,6 +24,22 @@ class CompatTest {
 			.isEqualTo(KeyEvent("\u4f60\u597d"))
 	}
 
+	@Test fun standaloneModifierKeysAreIgnored() {
+		for (codepoint in 57441..57454) {
+			assertThat(KeyboardEvent(codepoint).toKeyEventOrNull()).isNull()
+		}
+	}
+
+	@Test fun associatedTextTakesPrecedenceOverModifierCodepoint() {
+		assertThat(
+			KeyboardEvent(
+				codepoint = 57441,
+				modifiers = KeyboardEvent.ModifierShift,
+				text = "\ue061",
+			).toKeyEventOrNull(),
+		).isEqualTo(KeyEvent("\ue061", shift = true))
+	}
+
 	@Test fun namedPrivateUseCodepointRetainsKeyName() {
 		assertThat(KeyboardEvent(KeyboardEvent.Left).toKeyEventOrNull())
 			.isEqualTo(KeyEvent("ArrowLeft"))

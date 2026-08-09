@@ -4,8 +4,15 @@ import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import de.cketti.codepoints.CodePoints
 
+// Kitty reports standalone modifier presses in this range when report-all-keys is enabled.
+private const val KittyModifierKeyStart = 57441
+private const val KittyModifierKeyEnd = 57454
+
 internal fun KeyboardEvent.toKeyEventOrNull(): KeyEvent? {
 	if (eventType != KeyboardEvent.EventTypePress) {
+		return null
+	}
+	if (text == null && codepoint in KittyModifierKeyStart..KittyModifierKeyEnd) {
 		return null
 	}
 
