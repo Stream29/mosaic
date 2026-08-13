@@ -45,6 +45,16 @@ class CompatTest {
 			.isEqualTo(KeyEvent("ArrowLeft"))
 	}
 
+	@Test fun capsLockUsesItsKeyName() {
+		assertThat(KeyboardEvent(57358).toKeyEventOrNull())
+			.isEqualTo(KeyEvent("CapsLock"))
+	}
+
+	@Test fun associatedTextTakesPrecedenceOverCapsLockCodepoint() {
+		assertThat(KeyboardEvent(codepoint = 57358, text = "\ue00e").toKeyEventOrNull())
+			.isEqualTo(KeyEvent("\ue00e"))
+	}
+
 	@Test fun menuKeyUsesTheContextMenuName() {
 		assertThat(KeyboardEvent(KeyboardEvent.Menu).toKeyEventOrNull())
 			.isEqualTo(KeyEvent("ContextMenu"))
