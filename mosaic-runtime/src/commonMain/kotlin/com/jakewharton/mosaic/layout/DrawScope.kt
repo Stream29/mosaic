@@ -125,6 +125,19 @@ internal open class TextCanvasDrawScope(
 	override val width: Int,
 	override val height: Int,
 ) : DrawScope {
+	internal fun drawTextStyleOverlay(textStyle: TextStyle) {
+		if (textStyle.isUnspecifiedTextStyle) return
+
+		for (y in 0 until height) {
+			for (x in 0 until width) {
+				val pixel = canvas.textLeaderAtOrNull(y, x) ?: continue
+				if (!pixel.isEmpty()) {
+					pixel.textStyle += textStyle
+				}
+			}
+		}
+	}
+
 	override fun drawRect(
 		char: Char,
 		foreground: Color,

@@ -17,6 +17,7 @@
 package com.jakewharton.mosaic.layout
 
 import com.jakewharton.mosaic.modifier.Modifier
+import com.jakewharton.mosaic.ui.TextStyle
 
 public interface DrawModifier : Modifier.Element {
 	public fun ContentDrawScope.draw()
@@ -29,6 +30,16 @@ public fun Modifier.drawBehind(
 	onDraw: DrawScope.() -> Unit,
 ): Modifier = this then DrawBehindElement(onDraw)
 
+/**
+ * Adds [textStyle] to cells already drawn within this element's bounds.
+ *
+ * Empty cells remain unchanged, so this modifier does not make blank terminal surface cells render
+ * as spaces.
+ */
+public fun Modifier.drawTextStyleOverlay(
+	textStyle: TextStyle,
+): Modifier = this then DrawTextStyleOverlayElement(textStyle)
+
 private class DrawBehindElement(
 	val onDraw: DrawScope.() -> Unit,
 ) : DrawModifier {
@@ -38,4 +49,15 @@ private class DrawBehindElement(
 	}
 
 	override fun toString() = "DrawBehind"
+}
+
+private class DrawTextStyleOverlayElement(
+	private val textStyle: TextStyle,
+) : DrawModifier {
+	override fun ContentDrawScope.draw() {
+		drawContent()
+		(this as TextCanvasDrawScope).drawTextStyleOverlay(textStyle)
+	}
+
+	override fun toString() = "DrawTextStyleOverlay($textStyle)"
 }
