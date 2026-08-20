@@ -226,9 +226,26 @@ internal class TextSurface(
 						attributes += off
 					}
 				}
+				fun maybeToggleIntensity() {
+					val isBold = Bold in pixel.textStyle
+					val isDim = Dim in pixel.textStyle
+					val wasBold = Bold in lastPixel.textStyle
+					val wasDim = Dim in lastPixel.textStyle
+					if (isBold == wasBold && isDim == wasDim) return
+
+					if (wasBold || wasDim) {
+						// SGR 22 clears both bold and dim.
+						attributes += "22"
+					}
+					if (isBold) {
+						attributes += "1"
+					}
+					if (isDim) {
+						attributes += "2"
+					}
+				}
 				if (pixel.textStyle != lastPixel.textStyle) {
-					maybeToggleStyle(Bold, "1", "22")
-					maybeToggleStyle(Dim, "2", "22")
+					maybeToggleIntensity()
 					maybeToggleStyle(Italic, "3", "23")
 					maybeToggleStyle(Invert, "7", "27")
 					maybeToggleStyle(Strikethrough, "9", "29")

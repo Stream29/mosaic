@@ -14,6 +14,7 @@ import com.jakewharton.mosaic.ui.Color
 import com.jakewharton.mosaic.ui.Column
 import com.jakewharton.mosaic.ui.Row
 import com.jakewharton.mosaic.ui.Text
+import com.jakewharton.mosaic.ui.TextStyle
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 
@@ -363,4 +364,48 @@ class AnsiRenderingTest {
 			)
 		}
 	}
+
+	@Test fun boldAndDimTransitionsRestoreSharedTerminalIntensity() {
+		val none = TextStyle.Empty
+		val bold = TextStyle.Bold
+		val dim = TextStyle.Dim
+		val boldAndDim = bold + dim
+		val transitions = listOf(
+			IntensityTransition(none, none, "AB"),
+			IntensityTransition(none, bold, "A${CSI}1mB$ansiReset$ansiClosingCharacter"),
+			IntensityTransition(none, dim, "A${CSI}2mB$ansiReset$ansiClosingCharacter"),
+			IntensityTransition(none, boldAndDim, "A${CSI}1;2mB$ansiReset$ansiClosingCharacter"),
+			IntensityTransition(bold, none, "${CSI}1mA${CSI}22mB"),
+			IntensityTransition(bold, bold, "${CSI}1mAB$ansiReset$ansiClosingCharacter"),
+			IntensityTransition(bold, dim, "${CSI}1mA${CSI}22;2mB$ansiReset$ansiClosingCharacter"),
+			IntensityTransition(bold, boldAndDim, "${CSI}1mA${CSI}22;1;2mB$ansiReset$ansiClosingCharacter"),
+			IntensityTransition(dim, none, "${CSI}2mA${CSI}22mB"),
+			IntensityTransition(dim, bold, "${CSI}2mA${CSI}22;1mB$ansiReset$ansiClosingCharacter"),
+			IntensityTransition(dim, dim, "${CSI}2mAB$ansiReset$ansiClosingCharacter"),
+			IntensityTransition(dim, boldAndDim, "${CSI}2mA${CSI}22;1;2mB$ansiReset$ansiClosingCharacter"),
+			IntensityTransition(boldAndDim, none, "${CSI}1;2mA${CSI}22mB"),
+			IntensityTransition(boldAndDim, bold, "${CSI}1;2mA${CSI}22;1mB$ansiReset$ansiClosingCharacter"),
+			IntensityTransition(boldAndDim, dim, "${CSI}1;2mA${CSI}22;2mB$ansiReset$ansiClosingCharacter"),
+			IntensityTransition(boldAndDim, boldAndDim, "${CSI}1;2mAB$ansiReset$ansiClosingCharacter"),
+		)
+
+		for (transition in transitions) {
+			val surface = TextSurface(width = 2, height = 1)
+			surface.replaceText(row = 0, column = 0, text = "A", cellWidth = 1).apply {
+				textStyle = transition.from
+			}
+			surface.replaceText(row = 0, column = 1, text = "B", cellWidth = 1).apply {
+				textStyle = transition.to
+			}
+
+			assertThat(surface.render(AnsiLevel.TRUECOLOR, supportsKittyUnderlines = false))
+				.isEqualTo(transition.expected)
+		}
+	}
 }
+
+private data class IntensityTransition(
+	val from: TextStyle,
+	val to: TextStyle,
+	val expected: String,
+)
