@@ -281,5 +281,7 @@ public class MouseEvent(
 		Button9,
 		Button10,
 		Button11,
+		WheelLeft,
+		WheelRight,
 	}
 }

@@ -105,6 +105,46 @@ class PointerInputTest {
 		)
 	}
 
+	@Test fun wheelPressDoesNotCaptureSubsequentPointerEvents() = runTest {
+		var events by mutableStateOf(emptyList<String>())
+
+		runMosaicTest {
+			setContentAndSnapshot {
+				Column {
+					Row {
+						Text(
+							value = "first",
+							modifier = Modifier.onPointerEvent { event ->
+								events += "first:${event.type}"
+								true
+							},
+						)
+						Text(
+							value = "second",
+							modifier = Modifier.onPointerEvent { event ->
+								events += "second:${event.type}"
+								true
+							},
+						)
+					}
+					Text(events.joinToString())
+				}
+			}
+
+			sendMouseEvent(MouseEvent(1, 0, MouseEvent.Type.Press, MouseEvent.Button.WheelRight))
+			awaitSnapshot()
+			sendMouseEvent(MouseEvent(6, 0, MouseEvent.Type.Motion))
+			awaitSnapshot()
+		}
+
+		assertThat(events).isEqualTo(
+			listOf(
+				"first:Press",
+				"second:Motion",
+			),
+		)
+	}
+
 	@Test fun hoverCallbacksFollowTheTopmostHitPath() = runTest {
 		var events by mutableStateOf(emptyList<String>())
 

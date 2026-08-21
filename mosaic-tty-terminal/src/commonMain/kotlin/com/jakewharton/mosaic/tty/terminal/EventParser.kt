@@ -509,6 +509,8 @@ public class EventParser(
 						3 -> MouseEvent.Button.None
 						64 -> MouseEvent.Button.WheelUp
 						65 -> MouseEvent.Button.WheelDown
+						66 -> MouseEvent.Button.WheelLeft
+						67 -> MouseEvent.Button.WheelRight
 						128 -> MouseEvent.Button.Button8
 						129 -> MouseEvent.Button.Button9
 						130 -> MouseEvent.Button.Button10

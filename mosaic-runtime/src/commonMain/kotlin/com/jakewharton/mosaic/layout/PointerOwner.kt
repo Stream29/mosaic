@@ -203,4 +203,6 @@ private fun PointerEvent.localTo(origin: IntOffset): PointerEvent = PointerEvent
 private val MouseEvent.Button.isCapturable: Boolean
 	get() = this != MouseEvent.Button.None &&
 		this != MouseEvent.Button.WheelUp &&
-		this != MouseEvent.Button.WheelDown
+		this != MouseEvent.Button.WheelDown &&
+		this != MouseEvent.Button.WheelLeft &&
+		this != MouseEvent.Button.WheelRight

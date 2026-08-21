@@ -85,6 +85,34 @@ class EventParserCsiMouseEventTest : BaseEventParserTest() {
 		)
 	}
 
+	@Test fun clickWheelLeft() {
+		testTerminal.write("${CSI}MbH7")
+		assertThat(parser.next()).isEqualTo(
+			MouseEvent(39, 22, Type.Press, Button.WheelLeft),
+		)
+	}
+
+	@Test fun clickWheelRight() {
+		testTerminal.write("${CSI}McH7")
+		assertThat(parser.next()).isEqualTo(
+			MouseEvent(39, 22, Type.Press, Button.WheelRight),
+		)
+	}
+
+	@Test fun clickSgrWheelLeft() {
+		testTerminal.write("${CSI}<66;40;23M")
+		assertThat(parser.next()).isEqualTo(
+			MouseEvent(39, 22, Type.Press, Button.WheelLeft),
+		)
+	}
+
+	@Test fun clickSgrWheelRightWithShift() {
+		testTerminal.write("${CSI}<71;40;23M")
+		assertThat(parser.next()).isEqualTo(
+			MouseEvent(39, 22, Type.Press, Button.WheelRight, shift = true),
+		)
+	}
+
 	@Test fun clickButton8() {
 		testTerminal.writeHex("1b5b4da04837")
 		assertThat(parser.next()).isEqualTo(
