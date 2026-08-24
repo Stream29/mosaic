@@ -342,6 +342,10 @@ public class EventParser(
 
 						6 -> KeyboardEvent.PageDown
 
+						1 -> KeyboardEvent.Home
+
+						4 -> KeyboardEvent.End
+
 						7 -> KeyboardEvent.Home
 
 						8 -> KeyboardEvent.End

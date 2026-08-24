@@ -59,6 +59,16 @@ class EventParserCsiKeyboardEventTest : BaseEventParserTest() {
 		assertThat(parser.next()).isEqualTo(KeyboardEvent(Home))
 	}
 
+	@Test fun homeTildeOne() {
+		testTerminal.write("${CSI}1~")
+		assertThat(parser.next()).isEqualTo(KeyboardEvent(Home))
+	}
+
+	@Test fun endTildeFour() {
+		testTerminal.write("${CSI}4~")
+		assertThat(parser.next()).isEqualTo(KeyboardEvent(End))
+	}
+
 	@Test fun f10() {
 		testTerminal.write("${CSI}21~")
 		assertThat(parser.next()).isEqualTo(KeyboardEvent(F10))
