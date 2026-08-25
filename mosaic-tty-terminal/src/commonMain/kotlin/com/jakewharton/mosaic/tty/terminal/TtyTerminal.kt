@@ -31,8 +31,8 @@ import kotlinx.coroutines.Dispatchers.Unconfined
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -114,7 +114,9 @@ public suspend fun Tty.asTerminalIn(
 	val theme = MutableStateFlow(Terminal.Theme.Unknown)
 	val size = MutableStateFlow(Terminal.Size.Default)
 
-	val events = Channel<Event>(64, onBufferOverflow = DROP_OLDEST)
+	// Capability discovery completes before the caller can consume events, and IMEs may commit large
+	// bursts. Preserve every ordered event instead of dropping earlier input.
+	val events = Channel<Event>(UNLIMITED)
 
 	setCallback(EventParserTtyCallback(focused, size, events, emitDebugEvents))
 
