@@ -104,11 +104,10 @@ internal suspend fun runMosaicComposition(
 		while (true) {
 			clock.sendFrame(nanoTime())
 
-			// "1000 FPS should be enough for anybody"
-			// We need to yield in order for other coroutines on this dispatcher to run, otherwise
-			// this is effectively a spin loop. We do a delay instead of a yield since dispatchers
-			// are not required to support yield, but reasonable delay support is almost a guarantee.
-			delay(1)
+			// Cap input polling and animation frames at roughly 60 FPS. A 1 ms delay makes an idle
+			// application wake about 1,000 times per second, which is particularly expensive on
+			// Kotlin/Native.
+			delay(16)
 		}
 	}
 
