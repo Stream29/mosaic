@@ -581,6 +581,16 @@ final class com.jakewharton.mosaic.ui/BiasAlignment : com.jakewharton.mosaic.ui/
 
 final class com.jakewharton.mosaic.ui/SubcomposeLayoutState { // com.jakewharton.mosaic.ui/SubcomposeLayoutState|null[0]
     constructor <init>(kotlin/Int = ...) // com.jakewharton.mosaic.ui/SubcomposeLayoutState.<init>|<init>(kotlin.Int){}[0]
+
+    final fun precompose(kotlin/Any, kotlin/Any? = ..., kotlin/Function2<androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>): com.jakewharton.mosaic.ui/SubcomposeLayoutState.PrecomposedSlotHandle // com.jakewharton.mosaic.ui/SubcomposeLayoutState.precompose|precompose(kotlin.Any;kotlin.Any?;kotlin.Function2<androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>){}[0]
+
+    abstract interface PrecomposedSlotHandle { // com.jakewharton.mosaic.ui/SubcomposeLayoutState.PrecomposedSlotHandle|null[0]
+        abstract val placeablesCount // com.jakewharton.mosaic.ui/SubcomposeLayoutState.PrecomposedSlotHandle.placeablesCount|{}placeablesCount[0]
+            abstract fun <get-placeablesCount>(): kotlin/Int // com.jakewharton.mosaic.ui/SubcomposeLayoutState.PrecomposedSlotHandle.placeablesCount.<get-placeablesCount>|<get-placeablesCount>(){}[0]
+
+        abstract fun dispose() // com.jakewharton.mosaic.ui/SubcomposeLayoutState.PrecomposedSlotHandle.dispose|dispose(){}[0]
+        abstract fun premeasure(kotlin/Int, com.jakewharton.mosaic.ui.unit/Constraints) // com.jakewharton.mosaic.ui/SubcomposeLayoutState.PrecomposedSlotHandle.premeasure|premeasure(kotlin.Int;com.jakewharton.mosaic.ui.unit.Constraints){}[0]
+    }
 }
 
 final class com.jakewharton.mosaic/StaticLogger { // com.jakewharton.mosaic/StaticLogger|null[0]
@@ -958,6 +968,7 @@ final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layo
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/clipToBounds(): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/clipToBounds|clipToBounds@com.jakewharton.mosaic.modifier.Modifier(){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/defaultMinSize(kotlin/Int = ..., kotlin/Int = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/defaultMinSize|defaultMinSize@com.jakewharton.mosaic.modifier.Modifier(kotlin.Int;kotlin.Int){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/drawBehind(kotlin/Function1<com.jakewharton.mosaic.layout/DrawScope, kotlin/Unit>): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/drawBehind|drawBehind@com.jakewharton.mosaic.modifier.Modifier(kotlin.Function1<com.jakewharton.mosaic.layout.DrawScope,kotlin.Unit>){}[0]
+final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/drawTextStyleOverlay(com.jakewharton.mosaic.ui/TextStyle): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/drawTextStyleOverlay|drawTextStyleOverlay@com.jakewharton.mosaic.modifier.Modifier(com.jakewharton.mosaic.ui.TextStyle){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/fillMaxHeight(kotlin/Float = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/fillMaxHeight|fillMaxHeight@com.jakewharton.mosaic.modifier.Modifier(kotlin.Float){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/fillMaxSize(kotlin/Float = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/fillMaxSize|fillMaxSize@com.jakewharton.mosaic.modifier.Modifier(kotlin.Float){}[0]
 final fun (com.jakewharton.mosaic.modifier/Modifier).com.jakewharton.mosaic.layout/fillMaxWidth(kotlin/Float = ...): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.layout/fillMaxWidth|fillMaxWidth@com.jakewharton.mosaic.modifier.Modifier(kotlin.Float){}[0]

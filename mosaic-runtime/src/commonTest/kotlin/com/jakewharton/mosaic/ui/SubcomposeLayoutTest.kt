@@ -8,12 +8,87 @@ import androidx.compose.runtime.remember
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import com.jakewharton.mosaic.layout.Measurable
+import com.jakewharton.mosaic.layout.MeasurePolicy
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.testing.runMosaicTest
+import com.jakewharton.mosaic.ui.unit.Constraints
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 
 class SubcomposeLayoutTest {
+	@Test fun precomposedAndPremeasuredSlotIsAdoptedWithoutRepeatedWork() = runTest {
+		val state = SubcomposeLayoutState()
+		val showItem = mutableStateOf(false)
+		var compositionCount = 0
+		var measureCount = 0
+		val itemContent: @Composable @MosaicComposable () -> Unit = {
+			compositionCount++
+			Layout(
+				content = {},
+				measurePolicy = MeasurePolicy { _, _ ->
+					measureCount++
+					layout(1, 1) {}
+				},
+			)
+		}
+		val itemConstraints = Constraints(maxWidth = 10, maxHeight = 10)
+
+		runMosaicTest {
+			setContent {
+				SubcomposeLayout(state) {
+					val placeable = if (showItem.value) {
+						subcompose("item", content = itemContent).single().measure(itemConstraints)
+					} else {
+						null
+					}
+					layout(1, 1) {
+						placeable?.place(0, 0)
+					}
+				}
+			}
+			awaitSnapshot()
+
+			val handle = state.precompose("item", content = itemContent)
+			assertThat(compositionCount).isEqualTo(1)
+			assertThat(handle.placeablesCount).isEqualTo(1)
+			handle.premeasure(0, itemConstraints)
+			assertThat(measureCount).isEqualTo(1)
+
+			showItem.value = true
+			awaitSnapshot()
+			assertThat(compositionCount).isEqualTo(1)
+			assertThat(measureCount).isEqualTo(1)
+			assertThat(handle.placeablesCount).isEqualTo(0)
+			handle.dispose()
+		}
+	}
+
+	@Test fun disposingPrecomposedSlotDisposesItsEffects() = runTest {
+		val state = SubcomposeLayoutState()
+		var disposeCount = 0
+
+		runMosaicTest {
+			setContent {
+				SubcomposeLayout(state) {
+					layout(1, 1) {}
+				}
+			}
+			awaitSnapshot()
+
+			val handle = state.precompose("item") {
+				DisposableEffect(Unit) {
+					onDispose { disposeCount++ }
+				}
+				Text("item")
+			}
+			assertThat(handle.placeablesCount).isEqualTo(1)
+			handle.dispose()
+			handle.dispose()
+			assertThat(handle.placeablesCount).isEqualTo(0)
+			assertThat(disposeCount).isEqualTo(1)
+		}
+	}
+
 	@Test fun rendersOnlyRequestedSlots() = runTest {
 		val keys = mutableStateOf(listOf("a", "b"))
 

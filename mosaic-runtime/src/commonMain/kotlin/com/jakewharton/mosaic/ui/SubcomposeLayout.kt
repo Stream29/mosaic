@@ -106,9 +106,59 @@ public interface SubcomposeMeasureScope : MeasureScope {
 public class SubcomposeLayoutState(
 	internal val maxSlotsToRetainForReuse: Int = 0,
 ) {
+	private var nodeState: SubcomposeLayoutNodeState? = null
+
 	init {
 		require(maxSlotsToRetainForReuse >= 0) {
 			"maxSlotsToRetainForReuse must be non-negative"
+		}
+	}
+
+	/**
+	 * Precomposes [content] into an inactive slot which can be adopted by a later measure pass.
+	 *
+	 * The returned handle may additionally premeasure each top-level measurable. Calling this
+	 * before the state is attached to a [SubcomposeLayout] returns an inert handle.
+	 */
+	public fun precompose(
+		slotId: Any,
+		contentType: Any? = null,
+		content:
+		@Composable @MosaicComposable
+		() -> Unit,
+	): PrecomposedSlotHandle = nodeState?.precompose(slotId, contentType, content)
+		?: EmptyPrecomposedSlotHandle
+
+	internal fun attach(nodeState: SubcomposeLayoutNodeState) {
+		check(this.nodeState == null || this.nodeState === nodeState) {
+			"A SubcomposeLayoutState cannot be attached to multiple layouts"
+		}
+		this.nodeState = nodeState
+	}
+
+	internal fun detach(nodeState: SubcomposeLayoutNodeState) {
+		if (this.nodeState === nodeState) {
+			this.nodeState = null
+		}
+	}
+
+	/** Owns one slot prepared outside the normal measure pass. */
+	public interface PrecomposedSlotHandle {
+		/** Number of top-level measurables produced by the slot. */
+		public val placeablesCount: Int
+
+		/** Measures one top-level measurable so the same constraints can be reused later. */
+		public fun premeasure(index: Int, constraints: Constraints)
+
+		/** Cancels the precomposition. Safe to call more than once. */
+		public fun dispose()
+	}
+
+	private companion object {
+		private object EmptyPrecomposedSlotHandle : PrecomposedSlotHandle {
+			override val placeablesCount: Int get() = 0
+			override fun premeasure(index: Int, constraints: Constraints) = Unit
+			override fun dispose() = Unit
 		}
 	}
 }
@@ -134,6 +184,15 @@ internal class SubcomposeLayoutNodeState(
 	private var currentIndex = 0
 	private var isMeasuring = false
 	private var ignoreRelayoutRequests = false
+	private var externalState: SubcomposeLayoutState? = null
+
+	fun updateExternalState(state: SubcomposeLayoutState) {
+		if (externalState === state) return
+		disposePrecomposedSlots()
+		externalState?.detach(this)
+		externalState = state
+		state.attach(this)
+	}
 
 	fun updateMaxSlotsToRetainForReuse(value: Int) {
 		if (maxSlotsToRetainForReuse == value) return
@@ -205,6 +264,8 @@ internal class SubcomposeLayoutNodeState(
 	}
 
 	override fun onRelease() {
+		externalState?.detach(this)
+		externalState = null
 		disposeSlots()
 	}
 
@@ -225,6 +286,7 @@ internal class SubcomposeLayoutNodeState(
 		check(!isMeasuring) {
 			"SubcomposeLayout lifecycle cannot change during measurement"
 		}
+		disposePrecomposedSlots()
 		ignoreRelayoutRequests {
 			for (slot in slots) {
 				when (slot.phase) {
@@ -245,6 +307,7 @@ internal class SubcomposeLayoutNodeState(
 					SlotPhase.Deactivated -> Unit
 
 					SlotPhase.Uncomposed -> error("Uncomposed slot escaped its measure pass")
+					SlotPhase.Precomposed -> error("Precomposed slot escaped disposal")
 				}
 				slot.root.deactivateVirtualNode()
 			}
@@ -295,6 +358,7 @@ internal class SubcomposeLayoutNodeState(
 			slot.content !== content ||
 			slot.composition.hasInvalidations
 		) {
+			slot.premeasuredPlaceables.clear()
 			slot.content = content
 			try {
 				ignoreRelayoutRequests {
@@ -314,7 +378,65 @@ internal class SubcomposeLayoutNodeState(
 		slot.phase = SlotPhase.Active
 		slot.root.activateVirtualNode()
 		currentIndex++
-		return slot.root.children
+		return slot.measurables()
+	}
+
+	fun precompose(
+		slotId: Any,
+		contentType: Any?,
+		content:
+		@Composable @MosaicComposable
+		() -> Unit,
+	): SubcomposeLayoutState.PrecomposedSlotHandle {
+		check(!isMeasuring) { "precompose cannot be called during measurement" }
+		val existing = slotsByActiveId[slotId]
+		if (existing != null && existing.phase != SlotPhase.Precomposed) {
+			return EmptyNodePrecomposedSlotHandle
+		}
+
+		val normalizedContentType = contentType ?: DefaultContentType
+		var resetComposition = false
+		val slot = existing
+			?: takeReusableSlot(slotId, normalizedContentType)?.also { reusable ->
+				resetComposition = reusable.slotId != slotId
+				reusable.slotId = slotId
+				slotsByActiveId[slotId] = reusable
+			}
+			?: createSlot(
+				slotId = slotId,
+				contentType = normalizedContentType,
+				content = content,
+				index = slots.size,
+			)
+		slot.contentType = normalizedContentType
+		val requiresInitialComposition = slot.phase == SlotPhase.Uncomposed
+		if (
+			requiresInitialComposition ||
+			resetComposition ||
+			slot.content !== content ||
+			slot.composition.hasInvalidations
+		) {
+			slot.premeasuredPlaceables.clear()
+			slot.content = content
+			try {
+				ignoreRelayoutRequests {
+					if (resetComposition) {
+						slot.composition.setContentWithReuse { content() }
+					} else {
+						slot.composition.setContent { content() }
+					}
+				}
+			} catch (throwable: Throwable) {
+				if (requiresInitialComposition) {
+					disposeSlotAt(slots.indexOf(slot))
+				}
+				throw throwable
+			}
+		}
+		slot.phase = SlotPhase.Precomposed
+		slot.precomposeGeneration++
+		slot.root.activateVirtualNode()
+		return PrecomposedSlotHandleImpl(slot, slot.precomposeGeneration)
 	}
 
 	/**
@@ -336,6 +458,7 @@ internal class SubcomposeLayoutNodeState(
 		content:
 		@Composable @MosaicComposable
 		() -> Unit,
+		index: Int = currentIndex,
 	): Slot {
 		val compositionContext = checkNotNull(compositionContext) {
 			"SubcomposeLayout has no parent composition context"
@@ -346,7 +469,7 @@ internal class SubcomposeLayoutNodeState(
 			isStatic = false,
 			isVirtual = true,
 		)
-		root.insertAt(currentIndex, slotRoot)
+		root.insertAt(index, slotRoot)
 		val composition = ReusableComposition(
 			applier = MosaicNodeApplier(
 				root = slotRoot,
@@ -355,7 +478,7 @@ internal class SubcomposeLayoutNodeState(
 			parent = compositionContext,
 		)
 		return Slot(slotId, contentType, slotRoot, composition, content).also { slot ->
-			slots.add(currentIndex, slot)
+			slots.add(index, slot)
 			slotsByActiveId[slotId] = slot
 		}
 	}
@@ -373,7 +496,7 @@ internal class SubcomposeLayoutNodeState(
 			if (index < currentIndex) {
 				slot.phase = SlotPhase.Active
 				slot.root.activateVirtualNode()
-			} else {
+			} else if (slot.phase != SlotPhase.Precomposed) {
 				if (slot.phase != SlotPhase.Deactivated) {
 					slot.phase = SlotPhase.Reusable
 				}
@@ -403,6 +526,14 @@ internal class SubcomposeLayoutNodeState(
 			slot.composition.dispose()
 		}
 		root.removeAt(index, 1)
+	}
+
+	private fun disposePrecomposedSlots() {
+		for (index in slots.indices.reversed()) {
+			if (slots[index].phase == SlotPhase.Precomposed) {
+				disposeSlotAt(index)
+			}
+		}
 	}
 
 	private fun removeActiveSlot(slot: Slot) {
@@ -457,6 +588,76 @@ internal class SubcomposeLayoutNodeState(
 		() -> Unit,
 	) {
 		var phase = SlotPhase.Uncomposed
+		var precomposeGeneration = 0
+		val premeasuredPlaceables = mutableMapOf<Int, PremeasuredPlaceable>()
+
+		fun measurables(): List<Measurable> = root.children.mapIndexed { index, measurable ->
+			CachedMeasurable(this, index, measurable)
+		}
+	}
+
+	private class CachedMeasurable(
+		private val slot: Slot,
+		private val index: Int,
+		private val delegate: Measurable,
+	) : Measurable by delegate {
+		override fun measure(constraints: Constraints): Placeable {
+			val cached = slot.premeasuredPlaceables.remove(index)
+			return if (cached != null && cached.constraints == constraints) {
+				cached.placeable
+			} else {
+				delegate.measure(constraints)
+			}
+		}
+	}
+
+	private data class PremeasuredPlaceable(
+		val constraints: Constraints,
+		val placeable: Placeable,
+	)
+
+	private inner class PrecomposedSlotHandleImpl(
+		private val slot: Slot,
+		private val generation: Int,
+	) : SubcomposeLayoutState.PrecomposedSlotHandle {
+		private var disposed = false
+
+		override val placeablesCount: Int
+			get() = if (ownsSlot()) slot.root.children.size else 0
+
+		override fun premeasure(index: Int, constraints: Constraints) {
+			if (!ownsSlot()) return
+			val measurable = slot.root.children.getOrNull(index)
+				?: throw IndexOutOfBoundsException(
+					"Precomposed slot has ${slot.root.children.size} placeables; index was $index"
+				)
+			slot.premeasuredPlaceables[index] = PremeasuredPlaceable(
+				constraints = constraints,
+				placeable = measurable.measure(constraints),
+			)
+		}
+
+		override fun dispose() {
+			if (!ownsSlot()) {
+				disposed = true
+				return
+			}
+			disposed = true
+			disposeSlotAt(slots.indexOf(slot))
+		}
+
+		private fun ownsSlot(): Boolean =
+			!disposed &&
+				slot.phase == SlotPhase.Precomposed &&
+				slot.precomposeGeneration == generation &&
+				slotsByActiveId[slot.slotId] === slot
+	}
+
+	private object EmptyNodePrecomposedSlotHandle :
+		SubcomposeLayoutState.PrecomposedSlotHandle {
+		override val placeablesCount: Int get() = 0
+		override fun premeasure(index: Int, constraints: Constraints) = Unit
+		override fun dispose() = Unit
 	}
 
 	private enum class SlotPhase {
@@ -464,6 +665,7 @@ internal class SubcomposeLayoutNodeState(
 		Active,
 		Reusable,
 		Deactivated,
+		Precomposed,
 		;
 
 		val isReusable: Boolean
@@ -499,7 +701,7 @@ private val SubcomposeDebugPolicy = DebugPolicy {
 
 @JvmField
 internal val SetSubcomposeLayoutState: MosaicNode.(SubcomposeLayoutState) -> Unit = { state ->
-	getOrCreateSubcompositions(state.maxSlotsToRetainForReuse)
+	getOrCreateSubcompositions(state.maxSlotsToRetainForReuse).updateExternalState(state)
 }
 
 @JvmField
