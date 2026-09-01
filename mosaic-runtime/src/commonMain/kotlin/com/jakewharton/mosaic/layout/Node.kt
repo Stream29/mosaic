@@ -72,6 +72,10 @@ internal abstract class MosaicNodeLayer :
 		measureResult.placeChildren()
 	}
 
+	internal fun replaceAt(x: Int, y: Int) {
+		placeAt(x, y)
+	}
+
 	open fun drawTo(canvas: TextSurface) {
 		next?.drawTo(canvas)
 	}
@@ -125,6 +129,7 @@ internal interface MosaicNodeOwner {
 
 	/** Measures and lays out the tree affected by [node] before returning. */
 	fun measureAndLayout(node: MosaicNode)
+
 }
 
 /**
@@ -149,7 +154,7 @@ internal interface MosaicNodeOwner {
  * this node across reuse.
  */
 internal class MosaicNode(
-	var measurePolicy: MeasurePolicy,
+	measurePolicy: MeasurePolicy,
 	var debugPolicy: DebugPolicy,
 	val isStatic: Boolean,
 	val isVirtual: Boolean = false,
@@ -176,6 +181,8 @@ internal class MosaicNode(
 		private set
 	private var owner: MosaicNodeOwner? = null
 	private var subcompositionsState: SubcomposeLayoutNodeState? = null
+	private var measurementDirty = true
+	private var lastConstraints: Constraints? = null
 	private var remeasurementModifiers: List<RemeasurementModifier> = emptyList()
 	private val modifierNodeChain = NodeChain(this)
 	private val remeasurement = object : Remeasurement {
@@ -191,6 +198,12 @@ internal class MosaicNode(
 	private val pointerInputNodes = mutableListOf<PointerInputNode>()
 	private val pointerHoverNodes = mutableListOf<PointerHoverNode>()
 	private val onPlacedHandles = mutableListOf<OnPlacedHandle>()
+	var measurePolicy: MeasurePolicy = measurePolicy
+		set(value) {
+			if (field === value) return
+			field = value
+			requestRelayout()
+		}
 	var topLayer: MosaicNodeLayer = bottomLayer
 		private set
 
@@ -226,7 +239,28 @@ internal class MosaicNode(
 	}
 
 	internal fun requestRelayout() {
+		markMeasurementDirty()
 		owner?.onRequestRelayout(this)
+	}
+
+	internal fun markMeasurementDirty() {
+		var node: MosaicNode? = this
+		while (node != null) {
+			node.measurementDirty = true
+			node = node.parent
+		}
+	}
+
+	internal fun markMeasurementSubtreeDirty() {
+		markMeasurementSubtreeDirtyDown()
+		parent?.markMeasurementDirty()
+	}
+
+	private fun markMeasurementSubtreeDirtyDown() {
+		measurementDirty = true
+		for (child in mutableFoldedChildren) {
+			child.markMeasurementSubtreeDirtyDown()
+		}
 	}
 
 	internal fun insertAt(index: Int, instance: MosaicNode) {
@@ -235,6 +269,7 @@ internal class MosaicNode(
 		mutableFoldedChildren.add(index, instance)
 		instance.parent = this
 		owner?.let(instance::attach)
+		markMeasurementDirty()
 	}
 
 	internal fun removeAt(index: Int, count: Int) {
@@ -245,6 +280,7 @@ internal class MosaicNode(
 			child.parent = null
 			mutableFoldedChildren.removeAt(childIndex)
 		}
+		markMeasurementDirty()
 	}
 
 	internal fun removeAll() {
@@ -256,16 +292,19 @@ internal class MosaicNode(
 		val movedChildren = mutableFoldedChildren.subList(from, from + count).toList()
 		mutableFoldedChildren.subList(from, from + count).clear()
 		mutableFoldedChildren.addAll(if (to > from) to - count else to, movedChildren)
+		markMeasurementDirty()
 	}
 
 	internal fun activateVirtualNode() {
 		check(isVirtual) { "Only virtual nodes can be activated explicitly" }
 		isDeactivated = false
+		parent?.markMeasurementDirty()
 	}
 
 	internal fun deactivateVirtualNode() {
 		check(isVirtual) { "Only virtual nodes can be deactivated explicitly" }
 		isDeactivated = true
+		parent?.markMeasurementDirty()
 	}
 
 	internal fun getOrCreateSubcompositions(
@@ -300,18 +339,22 @@ internal class MosaicNode(
 		subcompositionsState?.onReuse()
 		modifierNodeChain.reset()
 		isDeactivated = false
+		parent?.markMeasurementDirty()
 	}
 
 	override fun onDeactivate() {
 		subcompositionsState?.onDeactivate()
 		isDeactivated = true
+		parent?.markMeasurementDirty()
 	}
 
 	override fun onRelease() {
 		subcompositionsState?.onRelease()
+		parent?.markMeasurementDirty()
 	}
 
 	fun setModifier(modifier: Modifier) {
+		markMeasurementDirty()
 		modifierNodeChain.updateFrom(modifier)
 		var modifierElementIndex = modifierNodeChain.lastElementIndex
 		val updatedRemeasurementModifiers = mutableListOf<RemeasurementModifier>()
@@ -418,7 +461,33 @@ internal class MosaicNode(
 		}
 	}
 
-	override fun measure(constraints: Constraints): Placeable = topLayer.apply { measure(constraints) }
+	override fun measure(constraints: Constraints): Placeable {
+		if (!measurementDirty && lastConstraints == constraints) return topLayer
+		lastConstraints = constraints
+		measurementDirty = false
+		return try {
+			topLayer.apply { measure(constraints) }
+		} catch (throwable: Throwable) {
+			measurementDirty = true
+			throw throwable
+		}
+	}
+
+	internal fun forceRemeasureAndReplace(): Boolean {
+		val constraints = lastConstraints ?: return false
+		val previousWidth = width
+		val previousHeight = height
+		val previousX = x
+		val previousY = y
+		measurementDirty = true
+		measure(constraints)
+		if (width != previousWidth || height != previousHeight) {
+			markMeasurementDirty()
+			return false
+		}
+		topLayer.replaceAt(previousX, previousY)
+		return true
+	}
 
 	val width: Int get() = topLayer.width
 	val height: Int get() = topLayer.height

@@ -12,6 +12,7 @@ import com.jakewharton.mosaic.layout.MeasurePolicy
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.ui.unit.Constraints
+import com.jakewharton.mosaic.ui.unit.IntSize
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 
@@ -51,7 +52,7 @@ class SubcomposeLayoutTest {
 			val handle = state.precompose("item", content = itemContent)
 			assertThat(compositionCount).isEqualTo(1)
 			assertThat(handle.placeablesCount).isEqualTo(1)
-			handle.premeasure(0, itemConstraints)
+			assertThat(handle.premeasure(0, itemConstraints)).isEqualTo(IntSize(1, 1))
 			assertThat(measureCount).isEqualTo(1)
 
 			showItem.value = true

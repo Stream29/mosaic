@@ -24,6 +24,7 @@ import com.jakewharton.mosaic.layout.Placeable
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.modifier.materialize
 import com.jakewharton.mosaic.ui.unit.Constraints
+import com.jakewharton.mosaic.ui.unit.IntSize
 import kotlin.jvm.JvmField
 import kotlin.jvm.JvmName
 
@@ -147,8 +148,8 @@ public class SubcomposeLayoutState(
 		/** Number of top-level measurables produced by the slot. */
 		public val placeablesCount: Int
 
-		/** Measures one top-level measurable so the same constraints can be reused later. */
-		public fun premeasure(index: Int, constraints: Constraints)
+		/** Measures one top-level measurable and returns the size cached for later reuse. */
+		public fun premeasure(index: Int, constraints: Constraints): IntSize?
 
 		/** Cancels the precomposition. Safe to call more than once. */
 		public fun dispose()
@@ -157,7 +158,7 @@ public class SubcomposeLayoutState(
 	private companion object {
 		private object EmptyPrecomposedSlotHandle : PrecomposedSlotHandle {
 			override val placeablesCount: Int get() = 0
-			override fun premeasure(index: Int, constraints: Constraints) = Unit
+			override fun premeasure(index: Int, constraints: Constraints): IntSize? = null
 			override fun dispose() = Unit
 		}
 	}
@@ -625,16 +626,18 @@ internal class SubcomposeLayoutNodeState(
 		override val placeablesCount: Int
 			get() = if (ownsSlot()) slot.root.children.size else 0
 
-		override fun premeasure(index: Int, constraints: Constraints) {
-			if (!ownsSlot()) return
+		override fun premeasure(index: Int, constraints: Constraints): IntSize? {
+			if (!ownsSlot()) return null
 			val measurable = slot.root.children.getOrNull(index)
 				?: throw IndexOutOfBoundsException(
 					"Precomposed slot has ${slot.root.children.size} placeables; index was $index"
 				)
+			val placeable = measurable.measure(constraints)
 			slot.premeasuredPlaceables[index] = PremeasuredPlaceable(
 				constraints = constraints,
-				placeable = measurable.measure(constraints),
+				placeable = placeable,
 			)
+			return IntSize(placeable.width, placeable.height)
 		}
 
 		override fun dispose() {
@@ -656,7 +659,7 @@ internal class SubcomposeLayoutNodeState(
 	private object EmptyNodePrecomposedSlotHandle :
 		SubcomposeLayoutState.PrecomposedSlotHandle {
 		override val placeablesCount: Int get() = 0
-		override fun premeasure(index: Int, constraints: Constraints) = Unit
+		override fun premeasure(index: Int, constraints: Constraints): IntSize? = null
 		override fun dispose() = Unit
 	}
 

@@ -6,6 +6,7 @@ import assertk.assertions.isSameInstanceAs
 import com.jakewharton.mosaic.MosaicNodeApplier
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.testing.runMosaicTest
+import com.jakewharton.mosaic.ui.Column
 import com.jakewharton.mosaic.ui.Layout
 import com.jakewharton.mosaic.ui.NodeFactory
 import com.jakewharton.mosaic.ui.Text
@@ -16,6 +17,78 @@ import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 
 class RemeasurementTest {
+	@Test fun stableTargetRemeasureDoesNotMeasureCleanSibling() = runTest {
+		val modifier = RecordingRemeasurementModifier()
+		var targetMeasureCount = 0
+		var siblingMeasureCount = 0
+
+		runMosaicTest {
+			setContentAndSnapshot {
+				Column {
+					Layout(
+						content = { Text("target") },
+						modifier = Modifier
+							.then(modifier)
+							.clipToBounds(),
+					) { measurables, constraints ->
+						targetMeasureCount++
+						val placeable = measurables.single().measure(constraints)
+						layout(1, 1) { placeable.place(0, 0) }
+					}
+					Layout(
+						content = { Text("sibling") },
+						modifier = Modifier.clipToBounds(),
+					) { measurables, constraints ->
+						siblingMeasureCount++
+						val placeable = measurables.single().measure(constraints)
+						layout(1, 1) { placeable.place(0, 0) }
+					}
+				}
+			}
+			val targetBefore = targetMeasureCount
+			val siblingBefore = siblingMeasureCount
+
+			modifier.remeasurement.forceRemeasure()
+
+			assertThat(targetMeasureCount).isEqualTo(targetBefore + 1)
+			assertThat(siblingMeasureCount).isEqualTo(siblingBefore)
+			awaitSnapshot()
+		}
+	}
+
+	@Test fun cleanChildMeasurementIsReusedDuringParentRemeasure() = runTest {
+		val modifier = RecordingRemeasurementModifier()
+		var childMeasureCount = 0
+
+		runMosaicTest {
+			setContentAndSnapshot {
+				Layout(
+					content = {
+						Layout(
+							content = { Text("child") },
+						) { measurables, constraints ->
+							childMeasureCount++
+							val placeable = measurables.single().measure(constraints)
+							layout(1, 1) { placeable.place(0, 0) }
+						}
+					},
+					modifier = Modifier
+						.then(modifier)
+						.clipToBounds(),
+				) { measurables, constraints ->
+					val placeable = measurables.single().measure(constraints)
+					layout(1, 1) { placeable.place(0, 0) }
+				}
+			}
+			assertThat(childMeasureCount).isEqualTo(1)
+
+			modifier.remeasurement.forceRemeasure()
+
+			assertThat(childMeasureCount).isEqualTo(1)
+			awaitSnapshot()
+		}
+	}
+
 	@Test fun forceRemeasureCompletesBeforeReturning() = runTest {
 		val modifier = RecordingRemeasurementModifier()
 		var requestedWidth = 1

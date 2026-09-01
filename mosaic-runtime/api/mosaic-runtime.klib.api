@@ -589,7 +589,7 @@ final class com.jakewharton.mosaic.ui/SubcomposeLayoutState { // com.jakewharton
             abstract fun <get-placeablesCount>(): kotlin/Int // com.jakewharton.mosaic.ui/SubcomposeLayoutState.PrecomposedSlotHandle.placeablesCount.<get-placeablesCount>|<get-placeablesCount>(){}[0]
 
         abstract fun dispose() // com.jakewharton.mosaic.ui/SubcomposeLayoutState.PrecomposedSlotHandle.dispose|dispose(){}[0]
-        abstract fun premeasure(kotlin/Int, com.jakewharton.mosaic.ui.unit/Constraints) // com.jakewharton.mosaic.ui/SubcomposeLayoutState.PrecomposedSlotHandle.premeasure|premeasure(kotlin.Int;com.jakewharton.mosaic.ui.unit.Constraints){}[0]
+        abstract fun premeasure(kotlin/Int, com.jakewharton.mosaic.ui.unit/Constraints): com.jakewharton.mosaic.ui.unit/IntSize? // com.jakewharton.mosaic.ui/SubcomposeLayoutState.PrecomposedSlotHandle.premeasure|premeasure(kotlin.Int;com.jakewharton.mosaic.ui.unit.Constraints){}[0]
     }
 }
 

@@ -840,7 +840,7 @@ public final class com/jakewharton/mosaic/ui/SubcomposeLayoutState {
 public abstract interface class com/jakewharton/mosaic/ui/SubcomposeLayoutState$PrecomposedSlotHandle {
 	public abstract fun dispose ()V
 	public abstract fun getPlaceablesCount ()I
-	public abstract fun premeasure-h8GEtoU (IJ)V
+	public abstract fun premeasure-OWE2EDo (IJ)Lcom/jakewharton/mosaic/ui/unit/IntSize;
 }
 
 public abstract interface class com/jakewharton/mosaic/ui/SubcomposeMeasureScope : com/jakewharton/mosaic/layout/MeasureScope {

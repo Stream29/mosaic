@@ -240,6 +240,10 @@ internal class MosaicComposition(
 
 			readStatesOnLayout.clear()
 			Snapshot.observe(readObserver = readStatesOnLayoutObserver) {
+				// A normal layout pass may follow composition changes which update values captured
+				// by an otherwise-stable measure policy. Conservatively invalidate the tree here.
+				// Targeted synchronous remeasurement still reuses clean descendants between passes.
+				rootNode.markMeasurementSubtreeDirty()
 				rootNode.measureAndPlace()
 				focusOwner.reconcile(rootNode.collectFocusTree())
 				pointerOwner.reconcile(rootNode.collectPointerTree())
@@ -262,7 +266,29 @@ internal class MosaicComposition(
 	}
 
 	override fun measureAndLayout(node: MosaicNode) {
-		performLayout(draw = false)
+		check(!isPerformingLayout) {
+			"Cannot force remeasurement while Mosaic is already measuring"
+		}
+		isPerformingLayout = true
+		val remeasuredInPlace = try {
+			Snapshot.observe(readObserver = readStatesOnLayoutObserver) {
+				if (!node.forceRemeasureAndReplace()) {
+					false
+				} else {
+					focusOwner.reconcile(rootNode.collectFocusTree())
+					pointerOwner.reconcile(rootNode.collectPointerTree())
+					true
+				}
+			}
+		} finally {
+			isPerformingLayout = false
+		}
+		if (!remeasuredInPlace) {
+			performLayout(draw = false)
+			return
+		}
+		focusOwner.performPendingBringIntoView()
+		needDraw = true
 	}
 
 	private fun performDraw() {
@@ -463,12 +489,15 @@ internal class MosaicNodeApplier(
 ) : AbstractApplier<MosaicNode>(
 	root = root,
 ) {
+	private val measurementRoot = root
+
 	init {
 		check(root.isAttached) { "MosaicNodeApplier root must be attached" }
 	}
 
 	override fun onBeginChanges() {
 		super.onBeginChanges()
+		measurementRoot.markMeasurementSubtreeDirty()
 		// We invoke this here rather than in the end change callback to try and ensure
 		// no one relies on it to signal the end of changes.
 		onChanges.invoke()
@@ -515,6 +544,7 @@ internal fun MosaicNodeApplier(
 			override fun measureAndLayout(node: MosaicNode) {
 				root.measureAndPlace()
 			}
+
 		},
 	)
 	return MosaicNodeApplier(root, onChanges)
