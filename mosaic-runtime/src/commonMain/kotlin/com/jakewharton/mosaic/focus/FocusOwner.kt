@@ -85,7 +85,7 @@ internal class FocusOwner(
 		val target = pendingBringIntoView ?: return
 		pendingBringIntoView = null
 		if (focusedTarget !== target) return
-		val entry = tree.target(target) ?: return
+		val entry = tree.targetIncludingHidden(target) ?: return
 		entry.node.requestBringIntoView()
 	}
 
@@ -365,7 +365,7 @@ internal class FocusOwner(
 	}
 
 	private fun isEligible(target: FocusTargetHandle): Boolean {
-		val entry = tree.target(target) ?: return false
+		val entry = tree.targetIncludingHidden(target) ?: return false
 		return isEligible(entry)
 	}
 
@@ -377,7 +377,7 @@ internal class FocusOwner(
 
 	/** @param target `null` clears focus because the current tree has no eligible target. */
 	private fun select(target: FocusTargetHandle?): Boolean {
-		return select(target, target?.let(tree::target))
+		return select(target, target?.let(tree::targetIncludingHidden))
 	}
 
 	private fun select(target: FocusTargetEntry): Boolean {
@@ -410,7 +410,7 @@ internal class FocusOwner(
 				pendingBringIntoView = null
 				entry.node.requestBringIntoView()
 				if (focusedTarget !== requestedHandle) return false
-				entry = tree.target(requestedHandle)
+				entry = tree.targetIncludingHidden(requestedHandle)
 				if (entry == null) {
 					focusedTarget = previousTarget
 					return false
@@ -518,7 +518,9 @@ internal class FocusTreeCollector {
 			block()
 			return
 		}
-		if (visibleBounds != null) recordFocusBoundary(handle)
+		if (visibleBounds != null || beyondBoundsLayoutStack.isNotEmpty()) {
+			recordFocusBoundary(handle)
+		}
 		val draft = FocusTargetDraft(
 			node = node,
 			handle = handle,
@@ -646,6 +648,10 @@ internal data class FocusTree(
 
 	/** @return `null` when [handle] is not attached to the current layout tree. */
 	fun target(handle: FocusTargetHandle): FocusTargetEntry? = targetsByHandle[handle]
+
+	/** @return `null` when [handle] is not attached to the current layout tree. */
+	fun targetIncludingHidden(handle: FocusTargetHandle): FocusTargetEntry? =
+		targetsByHandle[handle] ?: hiddenTargets.firstOrNull { it.handle === handle }
 
 	/** @return `null` when [handle] is not attached to the current layout tree. */
 	fun scope(handle: FocusScopeHandle): FocusScopeEntry? = scopesByHandle[handle]
