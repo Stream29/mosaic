@@ -38,7 +38,7 @@ static uint32_t mosaic_test_resize_internal(HANDLE conout, int columns, int rows
 	windowSize.Right = columns - 1;
 	windowSize.Top = 0;
 	windowSize.Bottom = rows - 1;
-	if (likely(SetConsoleWindowInfo(conout, TRUE, &windowSize) == 0)) {
+	if (likely(SetConsoleWindowInfo(conout, TRUE, &windowSize) != 0)) {
 		return 0;
 	}
 	return GetLastError();
