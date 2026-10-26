@@ -15,14 +15,16 @@ public expect class Tty : AutoCloseable {
 
 	/**
 	 * Set or clear the callback used for reporting events about the terminal using platform-specific
-	 * integration. The callback may be invoked on any thread and must never throw an exception.
-	 * On Windows the callback will only be invoked during calls to [read] or
-	 * [readWithTimeout].
+	 * integration. The callback is invoked synchronously during [read] or [readWithTimeout] and
+	 * must never throw an exception. Serialize calls which change ownership ([setCallback] and
+	 * [close]); on POSIX these may run concurrently with a single reader. Clearing or replacing a
+	 * callback on POSIX waits for any callback on another thread to return.
 	 */
 	public fun setCallback(callback: Callback?)
 
 	/**
 	 * Read up to [count] bytes into [buffer] at [offset] from the TTY.
+	 * Only one read may be active at a time.
 	 * The number of bytes read will be returned. 0 will be returned if [interruptRead] is called
 	 * while waiting for data. -1 will be returned if the TTY is not interactive.
 	 *
@@ -86,8 +88,9 @@ public expect class Tty : AutoCloseable {
 	 * records from the console. Only the row and column values of the event will be present.
 	 * The width and height will always be 0.
 	 *
-	 * On Linux and macOS this installs a `SIGWINCH` signal handler which then queries `TIOCGWINSZ`
-	 * using `ioctl`.
+	 * On Linux and macOS this installs a `SIGWINCH` handler which wakes the reader. The reader
+	 * queries `TIOCGWINSZ` using `ioctl` and dispatches the latest size in normal thread context.
+	 * Signals may be coalesced. A resize alone does not interrupt a read or extend its timeout.
 	 *
 	 * Note: You can also respond to resize events which lack necessary data by sending `XTWINOPS`
 	 * to query row/col counts and/or window or cell size in pixels. More details
@@ -101,7 +104,11 @@ public expect class Tty : AutoCloseable {
 	/** Reset TTY state. */
 	public fun reset()
 
-	/** Calls [reset] and then frees the resources associated with this instance. */
+	/**
+	 * Calls [reset] and then frees the resources associated with this instance. On POSIX this wakes
+	 * and waits for an active read. If called from a callback, reclamation is deferred until that
+	 * read returns.
+	 */
 	override fun close()
 
 	/** Platform-specific integration callbacks. */

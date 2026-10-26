@@ -1,5 +1,6 @@
 package com.jakewharton.mosaic.tty
 
+import kotlin.concurrent.Volatile
 import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.NativePlacement
@@ -37,25 +38,34 @@ public actual class Tty internal constructor(
 		}
 	}
 
+	@Volatile
 	private var ptr: CPointer<MosaicTty>? = ptr
 	private var callbackPtrAndRef: Pair<CPointer<MosaicTtyCallback>, StableRef<Callback>>? = null
 
 	public actual fun setCallback(callback: Callback?) {
-		callbackPtrAndRef?.let { (callbackPtr, callbackRef) ->
+		val ptr = checkNotNull(ptr) { "Tty is closed" }
+		val oldCallback = callbackPtrAndRef
+		val newCallback = callback?.let { callback ->
+			val callbackRef = StableRef.create(callback)
+			var allocation: CPointer<MosaicTtyCallback>? = null
+			try {
+				val callbackPtr = callbackRef.toNativeAllocationIn(nativeHeap).ptr
+				allocation = callbackPtr
+				callbackPtr to callbackRef
+			} catch (t: Throwable) {
+				allocation?.let { nativeHeap.free(it) }
+				callbackRef.dispose()
+				throw t
+			}
+		}
+
+		// POSIX waits for an in-flight read callback before its old allocation can be reclaimed.
+		mosaic_tty_set_callback(ptr, newCallback?.first)
+		callbackPtrAndRef = newCallback
+		oldCallback?.let { (callbackPtr, callbackRef) ->
 			nativeHeap.free(callbackPtr)
 			callbackRef.dispose()
-			callbackPtrAndRef = null
 		}
-
-		val callbackPtr = callback?.let { callback ->
-			val callbackRef = StableRef.create(callback)
-			val callbackPtr = callbackRef.toNativeAllocationIn(nativeHeap).ptr
-
-			callbackPtrAndRef = callbackPtr to callbackRef
-			callbackPtr
-		}
-
-		mosaic_tty_set_callback(ptr, callbackPtr)
 	}
 
 	public actual fun read(buffer: ByteArray, offset: Int, count: Int): Int {

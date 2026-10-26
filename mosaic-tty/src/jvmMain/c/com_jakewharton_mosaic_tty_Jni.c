@@ -416,7 +416,7 @@ Java_com_jakewharton_mosaic_tty_Jni_streamsFree(
 }
 
 typedef struct MosaicJniTtyCallback {
-	JNIEnv *env;
+	JavaVM *vm;
 	jobject instance;
 	jmethodID onFocus;
 	jmethodID onKey;
@@ -424,10 +424,19 @@ typedef struct MosaicJniTtyCallback {
 	jmethodID onResize;
 } MosaicJniTtyCallback;
 
+static JNIEnv *callback_env(MosaicJniTtyCallback *callback) {
+	JNIEnv *env = NULL;
+	// Callbacks run synchronously inside a Java-initiated read, not on an attached event thread.
+	(*callback->vm)->GetEnv(callback->vm, (void **) &env, JNI_VERSION_1_6);
+	return env;
+}
+
 static void invokeOnFocusCallback(void *opaque, bool focused) {
 	MosaicJniTtyCallback *callback = (MosaicJniTtyCallback *) opaque;
-	(*callback->env)->CallVoidMethod(
-		callback->env,
+	JNIEnv *env = callback_env(callback);
+	if (!env) return;
+	(*env)->CallVoidMethod(
+		env,
 		callback->instance,
 		callback->onFocus,
 		focused
@@ -436,8 +445,10 @@ static void invokeOnFocusCallback(void *opaque, bool focused) {
 
 static void invokeOnKeyCallback(void *opaque) {
 	MosaicJniTtyCallback *callback = (MosaicJniTtyCallback *) opaque;
-	(*callback->env)->CallVoidMethod(
-		callback->env,
+	JNIEnv *env = callback_env(callback);
+	if (!env) return;
+	(*env)->CallVoidMethod(
+		env,
 		callback->instance,
 		callback->onKey
 	);
@@ -445,8 +456,10 @@ static void invokeOnKeyCallback(void *opaque) {
 
 static void invokeOnMouseCallback(void *opaque) {
 	MosaicJniTtyCallback *callback = (MosaicJniTtyCallback *) opaque;
-	(*callback->env)->CallVoidMethod(
-		callback->env,
+	JNIEnv *env = callback_env(callback);
+	if (!env) return;
+	(*env)->CallVoidMethod(
+		env,
 		callback->instance,
 		callback->onMouse
 	);
@@ -454,8 +467,10 @@ static void invokeOnMouseCallback(void *opaque) {
 
 static void invokeOnResizeCallback(void *opaque, int columns, int rows, int width, int height) {
 	MosaicJniTtyCallback *callback = (MosaicJniTtyCallback *) opaque;
-	(*callback->env)->CallVoidMethod(
-		callback->env,
+	JNIEnv *env = callback_env(callback);
+	if (!env) return;
+	(*env)->CallVoidMethod(
+		env,
 		callback->instance,
 		callback->onResize,
 		columns,
@@ -471,45 +486,47 @@ Java_com_jakewharton_mosaic_tty_Jni_ttyCallbackInit(
 	jclass type UNUSED,
 	jobject instance
 ) {
+	MosaicJniTtyCallback *jniCallback = NULL;
+	MosaicTtyCallback *callback = NULL;
 	jobject globalInstance = (*env)->NewGlobalRef(env, instance);
 	if (unlikely(globalInstance == NULL)) {
 		return 0;
 	}
 	jclass clazz = (*env)->FindClass(env, "com/jakewharton/mosaic/tty/Tty$Callback");
 	if (unlikely(clazz == NULL)) {
-		return 0;
+		goto err;
 	}
 	jmethodID onFocus = (*env)->GetMethodID(env, clazz, "onFocus", "(Z)V");
 	if (unlikely(onFocus == NULL)) {
-		return 0;
+		goto err;
 	}
 	jmethodID onKey = (*env)->GetMethodID(env, clazz, "onKey", "()V");
 	if (unlikely(onKey == NULL)) {
-		return 0;
+		goto err;
 	}
 	jmethodID onMouse = (*env)->GetMethodID(env, clazz, "onMouse", "()V");
 	if (unlikely(onMouse == NULL)) {
-		return 0;
+		goto err;
 	}
 	jmethodID onResize = (*env)->GetMethodID(env, clazz, "onResize", "(IIII)V");
 	if (unlikely(onResize == NULL)) {
-		return 0;
+		goto err;
 	}
 
-	MosaicJniTtyCallback *jniCallback = malloc(sizeof(MosaicJniTtyCallback));
+	jniCallback = malloc(sizeof(MosaicJniTtyCallback));
 	if (unlikely(!jniCallback)) {
-		return 0;
+		goto err;
 	}
-	jniCallback->env = env;
+	if ((*env)->GetJavaVM(env, &jniCallback->vm) != JNI_OK) goto err;
 	jniCallback->instance = globalInstance;
 	jniCallback->onFocus = onFocus;
 	jniCallback->onKey = onKey;
 	jniCallback->onMouse = onMouse;
 	jniCallback->onResize = onResize;
 
-	MosaicTtyCallback *callback = malloc(sizeof(MosaicTtyCallback));
+	callback = malloc(sizeof(MosaicTtyCallback));
 	if (unlikely(!callback)) {
-		return 0;
+		goto err;
 	}
 	callback->opaque = jniCallback;
 	callback->onFocus = invokeOnFocusCallback;
@@ -518,6 +535,12 @@ Java_com_jakewharton_mosaic_tty_Jni_ttyCallbackInit(
 	callback->onResize = invokeOnResizeCallback;
 
 	return (jlong) callback;
+
+	err:
+	free(callback);
+	free(jniCallback);
+	(*env)->DeleteGlobalRef(env, globalInstance);
+	return 0;
 }
 
 JNIEXPORT void JNICALL

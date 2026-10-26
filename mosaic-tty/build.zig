@@ -37,6 +37,7 @@ fn setupMosaicTarget(b: *std.Build, step: *std.Build.Step, headers: []const u8, 
 	});
 
 	lib.linkLibC();
+	if (tag == .linux) lib.linkSystemLibrary("pthread");
 
 	lib.addIncludePath(b.path("src/commonMain/c"));
 	lib.addIncludePath(b.path(headers));

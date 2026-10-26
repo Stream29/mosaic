@@ -3,12 +3,24 @@
 
 #include "mosaic-tty.h"
 
+#include <pthread.h>
+#include <signal.h>
+
 typedef struct MosaicTtyImpl {
 	int fd;
 	int interrupt_fd_reader;
 	int interrupt_fd_writer;
+	int resize_fd_reader;
+	int resize_fd_writer;
 	MosaicTtyCallback *callback;
 	bool sigwinch;
+	bool closing;
+	bool reading;
+	bool callback_running;
+	bool deferred_free;
+	unsigned writers;
+	pthread_t read_thread;
+	struct sigaction saved_sigwinch;
 	struct termios *saved;
 } MosaicTtyImpl;
 

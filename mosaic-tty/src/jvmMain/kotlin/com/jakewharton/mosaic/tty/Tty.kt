@@ -4,7 +4,7 @@ import java.io.InputStream
 import java.io.OutputStream
 
 public actual class Tty internal constructor(
-	private var ptr: Long,
+	@Volatile private var ptr: Long,
 ) : AutoCloseable {
 	public actual companion object {
 		@JvmStatic
@@ -27,11 +27,8 @@ public actual class Tty internal constructor(
 	private var callbackPtr = 0L
 
 	public actual fun setCallback(callback: Callback?) {
+		check(ptr != 0L) { "Tty is closed" }
 		val oldCallbackPtr = callbackPtr
-		if (oldCallbackPtr != 0L) {
-			Jni.ttyCallbackFree(oldCallbackPtr)
-		}
-
 		val newCallbackPtr = if (callback != null) {
 			Jni.ttyCallbackInit(callback).also { ptr ->
 				if (ptr == 0L) {
@@ -42,8 +39,11 @@ public actual class Tty internal constructor(
 			0L
 		}
 
-		callbackPtr = newCallbackPtr
 		Jni.ttySetCallback(ptr, newCallbackPtr)
+		callbackPtr = newCallbackPtr
+		if (oldCallbackPtr != 0L) {
+			Jni.ttyCallbackFree(oldCallbackPtr)
+		}
 	}
 
 	@Throws(IOException::class)
@@ -88,13 +88,16 @@ public actual class Tty internal constructor(
 
 	@Throws(IOException::class)
 	actual override fun close() {
+		val ptr = this.ptr
 		if (ptr != 0L) {
-			Jni.ttyFree(ptr)
-			ptr = 0
-
-			if (callbackPtr != 0L) {
-				Jni.ttyCallbackFree(callbackPtr)
-				callbackPtr = 0
+			this.ptr = 0
+			try {
+				Jni.ttyFree(ptr)
+			} finally {
+				if (callbackPtr != 0L) {
+					Jni.ttyCallbackFree(callbackPtr)
+					callbackPtr = 0
+				}
 			}
 		}
 	}

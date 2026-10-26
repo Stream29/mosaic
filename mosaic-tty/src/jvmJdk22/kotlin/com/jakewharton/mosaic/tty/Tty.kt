@@ -18,7 +18,7 @@ import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout
 
 public class Tty internal constructor(
-	private var ptr: MemorySegment,
+	@Volatile private var ptr: MemorySegment,
 ) : AutoCloseable {
 	public companion object {
 		@JvmStatic
@@ -52,77 +52,116 @@ public class Tty internal constructor(
 	public fun asOutputStream(): OutputStream = TtyOutputStream(this)
 
 	private var callbackArena: Arena? = null
+	private var callbackPtr: MemorySegment = MemorySegment.NULL
+	@Volatile private var callback: Callback? = null
+	private val inCallback = ThreadLocal.withInitial { false }
+	private val retiredCallbackArenas = ThreadLocal.withInitial { mutableListOf<Arena>() }
+
+	private inline fun invokeCallback(block: () -> Unit) {
+		val wasInCallback = inCallback.get()
+		inCallback.set(true)
+		try {
+			block()
+		} finally {
+			inCallback.set(wasInCallback)
+		}
+	}
+
+	private fun retireCallbackArena(arena: Arena?) {
+		if (arena == null) return
+		if (inCallback.get()) {
+			// The FFM upcall stub cannot be reclaimed until the enclosing downcall has returned.
+			retiredCallbackArenas.get().add(arena)
+		} else {
+			arena.close()
+		}
+	}
+
+	private fun releaseRetiredCallbackArenas() {
+		if (inCallback.get()) return
+		val arenas = retiredCallbackArenas.get()
+		arenas.forEach { it.close() }
+		arenas.clear()
+	}
 
 	public fun setCallback(callback: Callback?) {
-		callbackArena?.let { arena ->
-			arena.close()
-			callbackArena = null
-		}
-
-		val ttyCallback = if (callback == null) {
-			MemorySegment.NULL
-		} else {
+		check(ptr != MemorySegment.NULL) { "Tty is closed" }
+		if (callback != null && callbackArena == null) {
 			val arena = Arena.ofShared()
-			callbackArena = arena
-
-			MosaicTtyCallback.allocate(arena).also { ttyCallback ->
-				MosaicTtyCallback.onFocus(
-					ttyCallback,
-					MosaicTtyCallbackOnFocus.allocate({ _, focused ->
-						callback.onFocus(focused)
-					}, arena),
-				)
-				MosaicTtyCallback.onKey(
-					ttyCallback,
-					MosaicTtyCallbackOnKey.allocate({
-						callback.onKey()
-					}, arena),
-				)
-				MosaicTtyCallback.onMouse(
-					ttyCallback,
-					MosaicTtyCallbackOnMouse.allocate({
-						callback.onMouse()
-					}, arena),
-				)
-				MosaicTtyCallback.onResize(
-					ttyCallback,
-					MosaicTtyCallbackOnResize.allocate({ _, columns, rows, width, height ->
-						callback.onResize(columns, rows, width, height)
-					}, arena),
-				)
+			try {
+				// One vtable per TTY keeps self-replacement bounded even during a long-lived read.
+				callbackPtr = MosaicTtyCallback.allocate(arena).also { ttyCallback ->
+					MosaicTtyCallback.onFocus(
+						ttyCallback,
+						MosaicTtyCallbackOnFocus.allocate({ _, focused ->
+							invokeCallback { this.callback?.onFocus(focused) }
+						}, arena),
+					)
+					MosaicTtyCallback.onKey(
+						ttyCallback,
+						MosaicTtyCallbackOnKey.allocate({
+							invokeCallback { this.callback?.onKey() }
+						}, arena),
+					)
+					MosaicTtyCallback.onMouse(
+						ttyCallback,
+						MosaicTtyCallbackOnMouse.allocate({
+							invokeCallback { this.callback?.onMouse() }
+						}, arena),
+					)
+					MosaicTtyCallback.onResize(
+						ttyCallback,
+						MosaicTtyCallbackOnResize.allocate({ _, columns, rows, width, height ->
+							invokeCallback { this.callback?.onResize(columns, rows, width, height) }
+						}, arena),
+					)
+				}
+				callbackArena = arena
+			} catch (t: Throwable) {
+				arena.close()
+				throw t
 			}
 		}
 
-		mosaic_tty_set_callback(ptr, ttyCallback)
+		this.callback = callback
+		mosaic_tty_set_callback(ptr, if (callback == null) MemorySegment.NULL else callbackPtr)
 	}
 
 	@Throws(IOException::class)
 	public fun read(buffer: ByteArray, offset: Int, count: Int): Int {
-		Arena.ofConfined().use { arena ->
-			val segment = arena.allocate(count.toLong())
-			val result = mosaic_tty_read(arena, ptr, segment, count)
-			val error = MosaicIoResult.error(result)
-			if (error == 0) {
-				val read = MosaicIoResult.count(result)
-				MemorySegment.copy(segment, ValueLayout.JAVA_BYTE, 0L, buffer, offset, read)
-				return read
+		try {
+			Arena.ofConfined().use { arena ->
+				val segment = arena.allocate(count.toLong())
+				val result = mosaic_tty_read(arena, ptr, segment, count)
+				val error = MosaicIoResult.error(result)
+				if (error == 0) {
+					val read = MosaicIoResult.count(result)
+					if (read > 0) MemorySegment.copy(segment, ValueLayout.JAVA_BYTE, 0L, buffer, offset, read)
+					return read
+				}
+				throwIoe(error)
 			}
-			throwIoe(error)
+		} finally {
+			releaseRetiredCallbackArenas()
 		}
 	}
 
 	@Throws(IOException::class)
 	public fun readWithTimeout(buffer: ByteArray, offset: Int, count: Int, timeoutMillis: Int): Int {
-		Arena.ofConfined().use { arena ->
-			val segment = arena.allocate(count.toLong())
-			val result = mosaic_tty_read_with_timeout(arena, ptr, segment, count, timeoutMillis)
-			val error = MosaicIoResult.error(result)
-			if (error == 0) {
-				val read = MosaicIoResult.count(result)
-				MemorySegment.copy(segment, ValueLayout.JAVA_BYTE, 0L, buffer, offset, read)
-				return read
+		try {
+			Arena.ofConfined().use { arena ->
+				val segment = arena.allocate(count.toLong())
+				val result = mosaic_tty_read_with_timeout(arena, ptr, segment, count, timeoutMillis)
+				val error = MosaicIoResult.error(result)
+				if (error == 0) {
+					val read = MosaicIoResult.count(result)
+					if (read > 0) MemorySegment.copy(segment, ValueLayout.JAVA_BYTE, 0L, buffer, offset, read)
+					return read
+				}
+				throwIoe(error)
 			}
-			throwIoe(error)
+		} finally {
+			releaseRetiredCallbackArenas()
 		}
 	}
 
@@ -191,10 +230,12 @@ public class Tty internal constructor(
 		if (ptr != MemorySegment.NULL) {
 			this.ptr = MemorySegment.NULL
 
-			callbackArena?.close()
+			val error = mosaic_tty_free(ptr)
+			callback = null
+			callbackPtr = MemorySegment.NULL
+			retireCallbackArena(callbackArena)
 			callbackArena = null
 
-			val error = mosaic_tty_free(ptr)
 			if (error == 0) return
 			throwIoe(error)
 		}

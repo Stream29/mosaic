@@ -7,7 +7,10 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Ignore
 import kotlin.test.Test
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
 import kotlinx.coroutines.test.runTest
@@ -138,6 +141,55 @@ class TtyTest {
 			"hey! onResize 1 2 3 4"
 		}
 		assertThat(events.receive()).isEqualTo(expected)
+	}
+
+	@Test fun posixResizeIsDeferredUntilRead() = runTest {
+		if (isWindows()) return@runTest
+		tty.enableWindowResizeEvents()
+		tty.setCallback(MyCallback())
+
+		repeat(100) { testTerminal.resize(90 + it, 30, 0, 0) }
+		assertEventsEmpty()
+		assertThat(tty.readWithTimeout(ByteArray(1), 0, 1, 0)).isEqualTo(0)
+		assertThat(events.receive()).isEqualTo("hey! onResize 189 30 0 0")
+		assertEventsEmpty()
+	}
+
+	@Test fun posixResizeAloneDoesNotCancelRead() = runTest {
+		if (isWindows()) return@runTest
+		tty.enableWindowResizeEvents()
+		tty.setCallback(MyCallback())
+		val read = async(Dispatchers.IO) { tty.read(ByteArray(1), 0, 1) }
+		try {
+			testTerminal.resize(91, 31, 0, 0)
+			assertThat(events.receive()).isEqualTo("hey! onResize 91 31 0 0")
+			// EOF/cancellation must not be synthesized by the resize-only notification.
+			val byte = byteArrayOf(42)
+			byte.writeFullyTo(testTerminal::writeTty)
+			assertThat(read.await()).isEqualTo(1)
+		} finally {
+			tty.interruptRead()
+			read.await()
+		}
+	}
+
+	@Test fun posixCallbackCanClearItself() = runTest {
+		if (isWindows()) return@runTest
+		tty.enableWindowResizeEvents()
+		tty.setCallback(object : Tty.Callback {
+			override fun onFocus(focused: Boolean) = Unit
+			override fun onKey() = Unit
+			override fun onMouse() = Unit
+			override fun onResize(columns: Int, rows: Int, width: Int, height: Int) {
+				tty.setCallback(null)
+				events.trySend("cleared")
+			}
+		})
+		testTerminal.resize(92, 32, 0, 0)
+		assertThat(tty.readWithTimeout(ByteArray(1), 0, 1, 0)).isEqualTo(0)
+		assertThat(events.receive()).isEqualTo("cleared")
+		testTerminal.resize(93, 33, 0, 0)
+		assertThat(tty.readWithTimeout(ByteArray(1), 0, 1, 0)).isEqualTo(0)
 	}
 
 	@Test fun callbackClear() = runTest {
