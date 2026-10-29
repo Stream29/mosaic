@@ -222,7 +222,22 @@ internal class FocusOwner(
 		val current = targets[currentIndex]
 		val candidate = targets[nextIndex]
 		val direction = if (forward) FocusDirection.Next else FocusDirection.Previous
-		return moveOrSearchBeyondBounds(current, candidate, direction, wrapped)
+		// Only consider hidden targets in the current provider. A global merge would enter
+		// unrelated scroll containers without first respecting their visible focus boundary.
+		val hiddenTarget = current.beyondBoundsLayouts.lastOrNull()?.let { provider ->
+			hiddenCandidate(current, direction, provider)
+		}
+		val orderedCandidate = focusCandidate(
+			source = current,
+			direction = direction,
+			candidates = listOfNotNull(candidate.takeUnless { wrapped }, hiddenTarget),
+		)
+		return moveOrSearchBeyondBounds(
+			current = current,
+			candidate = orderedCandidate ?: candidate,
+			direction = direction,
+			wrapped = wrapped && orderedCandidate == null,
+		)
 	}
 
 	private fun moveDirectionally(direction: FocusDirection): Boolean {
@@ -266,15 +281,30 @@ internal class FocusOwner(
 			if (updatedSource == null || !isEligible(updatedSource)) return@layout false
 
 			val visibleTarget = visibleCandidate(updatedSource, direction, beyondBoundsLayout)
-			if (visibleTarget != null) {
-				val selected = select(visibleTarget)
+			val sequential = direction == FocusDirection.Next || direction == FocusDirection.Previous
+			val target = if (sequential) {
+				focusCandidate(
+					source = updatedSource,
+					direction = direction,
+					candidates = listOfNotNull(
+						visibleTarget,
+						hiddenCandidate(updatedSource, direction, beyondBoundsLayout),
+					),
+				)
+			} else {
+				visibleTarget
+			}
+			if (target != null) {
+				val selected = select(target)
 				if (selected || focusedTarget !== source) return@layout true
 			}
 
-			val hiddenTarget = hiddenCandidate(updatedSource, direction, beyondBoundsLayout)
-			if (hiddenTarget != null) {
-				val selected = select(hiddenTarget)
-				if (selected || focusedTarget !== source) return@layout true
+			if (!sequential) {
+				val hiddenTarget = hiddenCandidate(updatedSource, direction, beyondBoundsLayout)
+				if (hiddenTarget != null) {
+					val selected = select(hiddenTarget)
+					if (selected || focusedTarget !== source) return@layout true
+				}
 			}
 
 			null
@@ -284,7 +314,22 @@ internal class FocusOwner(
 		if (movedTarget !== source && movedTarget != null && isEligible(movedTarget)) {
 			return true
 		}
-		return candidate
+		// After exhausting this provider, root wrapping must include its already composed
+		// clipped endpoint. Other providers remain outside this search boundary.
+		val wrappedCandidates = if (wrapped) {
+			listOfNotNull(candidate?.handle?.let(tree::targetIncludingHidden)?.takeIf(::isEligible)) +
+				tree.hiddenTargets.filter { target ->
+					isEligible(target) && target.beyondBoundsLayouts.any { it === beyondBoundsLayout }
+				}
+		} else {
+			emptyList()
+		}
+		val fallback = when {
+			wrapped && direction == FocusDirection.Next -> wrappedCandidates.minByOrNull(FocusTargetEntry::order)
+			wrapped && direction == FocusDirection.Previous -> wrappedCandidates.maxByOrNull(FocusTargetEntry::order)
+			else -> candidate
+		}
+		return fallback
 			?.handle
 			?.takeIf(::isEligible)
 			?.let(::select)
@@ -650,8 +695,7 @@ internal data class FocusTree(
 	fun target(handle: FocusTargetHandle): FocusTargetEntry? = targetsByHandle[handle]
 
 	/** @return `null` when [handle] is not attached to the current layout tree. */
-	fun targetIncludingHidden(handle: FocusTargetHandle): FocusTargetEntry? =
-		targetsByHandle[handle] ?: hiddenTargets.firstOrNull { it.handle === handle }
+	fun targetIncludingHidden(handle: FocusTargetHandle): FocusTargetEntry? = targetsByHandle[handle] ?: hiddenTargets.firstOrNull { it.handle === handle }
 
 	/** @return `null` when [handle] is not attached to the current layout tree. */
 	fun scope(handle: FocusScopeHandle): FocusScopeEntry? = scopesByHandle[handle]
