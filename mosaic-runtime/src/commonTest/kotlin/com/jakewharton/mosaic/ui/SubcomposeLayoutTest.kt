@@ -7,9 +7,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
+import com.jakewharton.mosaic.focus.FocusRequester
+import com.jakewharton.mosaic.focus.focusRequester
+import com.jakewharton.mosaic.focus.focusable
 import com.jakewharton.mosaic.layout.Measurable
 import com.jakewharton.mosaic.layout.MeasurePolicy
+import com.jakewharton.mosaic.layout.onPointerEvent
 import com.jakewharton.mosaic.modifier.Modifier
+import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.ui.unit.Constraints
 import com.jakewharton.mosaic.ui.unit.IntSize
@@ -17,6 +24,82 @@ import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 
 class SubcomposeLayoutTest {
+	@Test fun premeasuredPointerTargetIsUnavailableUntilAdoption() = runTest {
+		val state = SubcomposeLayoutState()
+		val showItem = mutableStateOf(false)
+		val layoutVersion = mutableIntStateOf(0)
+		val constraints = Constraints(maxWidth = 20, maxHeight = 2)
+		var presses = 0
+		val content: @Composable @MosaicComposable () -> Unit = {
+			Text("target", Modifier.onPointerEvent {
+				if (it.type == MouseEvent.Type.Press) presses++
+				true
+			})
+		}
+
+		runMosaicTest {
+			setContent {
+				SubcomposeLayout(state) {
+					val placeable = if (showItem.value) {
+						subcompose("item", content = content).single().measure(constraints)
+					} else {
+						null
+					}
+					layout(20, 1 + layoutVersion.intValue) { placeable?.place(0, 0) }
+				}
+			}
+			awaitSnapshot()
+			val handle = state.precompose("item", content = content)
+			assertThat(handle.premeasure(0, constraints)).isEqualTo(IntSize(6, 1))
+			layoutVersion.intValue++
+			awaitSnapshot()
+			sendMouseEvent(MouseEvent(1, 0, MouseEvent.Type.Press, MouseEvent.Button.Left))
+			sendMouseEvent(MouseEvent(1, 0, MouseEvent.Type.Release))
+			layoutVersion.intValue++
+			awaitSnapshot()
+			assertThat(presses).isEqualTo(0)
+			showItem.value = true
+			awaitSnapshot()
+			sendMouseEvent(MouseEvent(1, 0, MouseEvent.Type.Press, MouseEvent.Button.Left))
+			layoutVersion.intValue++
+			awaitSnapshot()
+			assertThat(presses).isEqualTo(1)
+		}
+	}
+
+	@Test fun premeasuredFocusTargetIsUnavailableUntilAdoption() = runTest {
+		val state = SubcomposeLayoutState()
+		val showItem = mutableStateOf(false)
+		val layoutVersion = mutableIntStateOf(0)
+		val requester = FocusRequester()
+		val constraints = Constraints(maxWidth = 20, maxHeight = 2)
+		val content: @Composable @MosaicComposable () -> Unit = {
+			Text("target", Modifier.focusRequester(requester).focusable())
+		}
+
+		runMosaicTest {
+			setContent {
+				SubcomposeLayout(state) {
+					val placeable = if (showItem.value) {
+						subcompose("item", content = content).single().measure(constraints)
+					} else {
+						null
+					}
+					layout(20, 1 + layoutVersion.intValue) { placeable?.place(0, 0) }
+				}
+			}
+			awaitSnapshot()
+			val handle = state.precompose("item", content = content)
+			assertThat(handle.premeasure(0, constraints)).isEqualTo(IntSize(6, 1))
+			layoutVersion.intValue++
+			awaitSnapshot()
+			assertThat(requester.requestFocus()).isFalse()
+			showItem.value = true
+			awaitSnapshot()
+			assertThat(requester.requestFocus()).isTrue()
+		}
+	}
+
 	@Test fun precomposedAndPremeasuredSlotIsAdoptedWithoutRepeatedWork() = runTest {
 		val state = SubcomposeLayoutState()
 		val showItem = mutableStateOf(false)

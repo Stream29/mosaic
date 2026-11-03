@@ -409,6 +409,9 @@ internal class SubcomposeLayoutNodeState(
 				content = content,
 				index = slots.size,
 			)
+		// Keep precomposition and premeasurement alive without projecting an unplaced slot
+		// into focus, pointer, or drawing traversal before a regular measure adopts it.
+		slot.root.deactivateVirtualNode()
 		slot.contentType = normalizedContentType
 		val requiresInitialComposition = slot.phase == SlotPhase.Uncomposed
 		if (
@@ -436,7 +439,6 @@ internal class SubcomposeLayoutNodeState(
 		}
 		slot.phase = SlotPhase.Precomposed
 		slot.precomposeGeneration++
-		slot.root.activateVirtualNode()
 		return PrecomposedSlotHandleImpl(slot, slot.precomposeGeneration)
 	}
 
