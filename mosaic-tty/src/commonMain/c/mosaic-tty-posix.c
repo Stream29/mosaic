@@ -1,16 +1,25 @@
 #if defined(__APPLE__) || defined(__linux__)
 
+#if defined(__APPLE__)
+// Select the Darwin entry point that accepts descriptor sets larger than FD_SETSIZE.
+#define _DARWIN_UNLIMITED_SELECT
+#endif
+
 #include "mosaic-tty-posix.h"
 #include "mosaic-utils-posix.h"
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <poll.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#if defined(__APPLE__)
+#include <sys/select.h>
+#endif
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
@@ -159,6 +168,61 @@ static int64_t monotonic_millis(void) {
 
 static uint32_t destroy_tty(MosaicTty *tty);
 
+static int wait_for_tty(struct pollfd *fds, nfds_t count, int timeout) {
+#if defined(__APPLE__)
+	// Darwin poll may report POLLNVAL for a working /dev/tty. Keep that descriptor
+	// (not stdin or a reopened device), but ask select for its readiness instead.
+	// Darwin represents fd_set as consecutive 32-bit words, including above FD_SETSIZE
+	// with the unlimited entry point. The FD_SET macros are for fixed-size objects.
+	_Static_assert(sizeof(fd_set) * 8 == FD_SETSIZE, "Unexpected Darwin fd_set layout");
+	_Alignas(fd_set) uint32_t small[2][sizeof(fd_set) / sizeof(uint32_t)] = {};
+	int largest = 0;
+	for (nfds_t i = 0; i < count; i++) {
+		fds[i].revents = 0;
+		if (fds[i].fd > largest) largest = fds[i].fd;
+	}
+	if (largest == INT_MAX) {
+		errno = EBADF;
+		return -1;
+	}
+	// Keep both variable sets naturally aligned and pad the last partial word.
+	size_t words = ((size_t) largest / 64 + 1) * 2;
+	uint32_t *readable = small[0];
+	uint32_t *exceptional = small[1];
+	uint32_t *storage = NULL;
+	if (largest >= FD_SETSIZE) {
+		storage = calloc(words, 2 * sizeof(*storage));
+		if (storage == NULL) return -1;
+		readable = storage;
+		exceptional = storage + words;
+	}
+	for (nfds_t i = 0; i < count; i++) {
+		if (fds[i].fd < 0) continue;
+		unsigned fd = (unsigned) fds[i].fd;
+		readable[fd / 32] |= UINT32_C(1) << (fd % 32);
+		exceptional[fd / 32] |= UINT32_C(1) << (fd % 32);
+	}
+	struct timeval duration = { .tv_sec = timeout / 1000, .tv_usec = (timeout % 1000) * 1000 };
+	int ready = select(largest + 1, (fd_set *) readable, NULL, (fd_set *) exceptional,
+		timeout < 0 ? NULL : &duration);
+	int failure = errno;
+	if (ready > 0) {
+		for (nfds_t i = 0; i < count; i++) {
+			if (fds[i].fd < 0) continue;
+			unsigned fd = (unsigned) fds[i].fd;
+			const uint32_t mask = UINT32_C(1) << (fd % 32);
+			if (readable[fd / 32] & mask) fds[i].revents |= POLLIN;
+			if (exceptional[fd / 32] & mask) fds[i].revents |= POLLERR;
+		}
+	}
+	free(storage);
+	errno = failure;
+	return ready;
+#else
+	return poll(fds, count, timeout);
+#endif
+}
+
 static MosaicIoResult read_internal(MosaicTty *tty, uint8_t *buffer, int count, int timeoutMillis) {
 	MosaicIoResult result = {};
 	int64_t deadline = timeoutMillis < 0 ? 0 : monotonic_millis() + timeoutMillis;
@@ -189,13 +253,13 @@ static MosaicIoResult read_internal(MosaicTty *tty, uint8_t *buffer, int count, 
 		firstPoll = false;
 		int timeout = timeoutMillis < 0 ? -1 : remaining > 0 ? (int) remaining : 0;
 		pthread_mutex_unlock(&ttyMutex);
-		int ready = poll(fds, 3, timeout);
-		int pollError = errno;
+		int ready = wait_for_tty(fds, 3, timeout);
+		int waitError = errno;
 		lock_tty();
 		if (tty->closing) break;
 		if (ready < 0) {
-			if (pollError == EINTR) continue;
-			result.error = pollError;
+			if (waitError == EINTR) continue;
+			result.error = waitError;
 			break;
 		}
 		if (ready == 0) break;
@@ -224,10 +288,10 @@ static MosaicIoResult read_internal(MosaicTty *tty, uint8_t *buffer, int count, 
 			break;
 		}
 		if (fds[0].revents & (POLLIN | POLLHUP)) {
-			// Reset (including from the callback) can flush input after the original poll.
+			// Reset (including from the callback) can flush input after the original wait.
 			// Recheck under the lifecycle lock rather than blocking on stale readiness.
 			struct pollfd input = { .fd = tty->fd, .events = POLLIN };
-			if (poll(&input, 1, 0) < 0) {
+			if (wait_for_tty(&input, 1, 0) < 0) {
 				if (errno == EINTR) continue;
 				result.error = errno;
 				break;
